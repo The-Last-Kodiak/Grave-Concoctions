@@ -22,18 +22,28 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     with db.engine.begin() as connection:
         for potion in potions_delivered:
             result = connection.execute(sqlalchemy.text("""
-                    INSERT INTO potions (order_id, potion_type, quantity)
-                    VALUES (:order_id, :potion_type, :quantity)
-                    ON CONFLICT (order_id, potion_type) DO UPDATE
-                    SET quantity = potions.quantity + EXCLUDED.quantity
+                SELECT quantity
+                FROM potions
+                WHERE potion_type = :potion_type
+            """), {
+                "potion_type": potion.potion_type
+            })
+            available_quantity = result.fetchone()['quantity']
+            
+            if available_quantity >= potion.quantity:
+                # Update the inventory
+                connection.execute(sqlalchemy.text("""
+                    UPDATE potions
+                    SET quantity = quantity + :quantity
+                    WHERE potion_type = :potion_type
                 """), {
-                    "order_id": order_id,
-                    "potion_type": potion.potion_type,
-                    "quantity": potion.quantity
+                    "quantity": potion.quantity,
+                    "potion_type": potion.potion_type
                 })
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
 
     return "OK"
+
 
 @router.post("/plan")
 def get_bottle_plan():
