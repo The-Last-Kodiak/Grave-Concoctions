@@ -52,7 +52,7 @@ def get_bottle_plan():
         for row in potions:
             potion_type = row['potion_type']
             total_quantity = row['total_quantity']
-            if potion_type[2] > 0:
+            if potion_type[2] > 0 and total_quantity > 0:
                 bottle_plan.append({
                     "potion_type": potion_type,
                     "quantity": total_quantity
@@ -64,13 +64,6 @@ def get_bottle_plan():
     # Expressed in integers from 1 to 100 that must sum up to 100.
 
     # Initial logic: bottle all barrels into red potions.
-
-    return [
-            {
-                "potion_type": [100, 0, 0, 0],
-                "quantity": 5,
-            }
-        ]
 
 if __name__ == "__main__":
     print(get_bottle_plan())
