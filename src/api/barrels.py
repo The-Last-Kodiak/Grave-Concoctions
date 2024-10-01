@@ -38,9 +38,9 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
                 "price": barrel.price,
                 "quantity": barrel.quantity
             })
-    print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
+    #print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
     
-    return "OK"
+    return 0
 
 # Gets called once a day
 @router.post("/plan")
@@ -62,5 +62,5 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print(wholesale_catalog)
     
     return purchase_plan
-    #{"sku": "SMALL_RED_BARREL","quantity": 1,}
+    #{"sku": "SMALL_GREEN_BARREL","quantity": 1,}
 
