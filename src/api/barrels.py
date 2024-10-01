@@ -20,7 +20,7 @@ class Barrel(BaseModel):
 
     quantity: int
 
-@router.post("/deliver/{order_id}")
+@router.post("/deliver/{order_op}")
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
     with db.engine.begin() as connection:
