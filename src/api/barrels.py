@@ -13,14 +13,12 @@ router = APIRouter(
 
 class Barrel(BaseModel):
     sku: str
-
     ml_per_barrel: int
     potion_type: list[int]
     price: int
-
     quantity: int
 
-@router.post("/deliver/{order_op}")
+@router.post("/deliver/{order_id}")
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
     with db.engine.begin() as connection:
@@ -43,24 +41,33 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     return 0
 
 # Gets called once a day
+
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
-    """ """
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("""
-            SELECT SUM(quantity) as total_quantity
-            FROM barrels
-            WHERE potion_type[2] > 0
-        """))
-        total_quantity = result.fetchone()['total_quantity']
-        purchase_plan = []
-        if total_quantity < 10:
-            purchase_plan.append({
-                "sku": "SMALL_GREEN_BARREL",
-                "quantity": 1,
-            })
-    print(wholesale_catalog)
-    
+    """
+    Gets the plan for purchasing wholesale barrels.
+    The call passes in a catalog of available barrels and the shop 
+    returns back which barrels they'd like to purchase and how many.
+    """
+    purchase_plan = []
+
+    # Example logic: Purchase one barrel of each type if the quantity is less than 10
+    for barrel in wholesale_catalog:
+        if barrel.potion_type[1] == 1:  # Assuming potion_type[1] represents green potions
+            with db.engine.begin() as connection:
+                result = connection.execute(sqlalchemy.text("""
+                    SELECT SUM(quantity) as total_quantity
+                    FROM barrels
+                    WHERE potion_type[2] > 0
+                """))
+                total_quantity = result.fetchone()['total_quantity']
+                
+                if total_quantity < 10:
+                    purchase_plan.append({
+                        "sku": barrel.sku,
+                        "quantity": min(1, barrel.quantity)  # Purchase at least 1, but not more than available
+                    })
+
     return purchase_plan
     #{"sku": "SMALL_GREEN_BARREL","quantity": 1,}
 

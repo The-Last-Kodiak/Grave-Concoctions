@@ -94,50 +94,59 @@ class Customer(BaseModel):
 @router.post("/visits/{visit_id}")
 def post_visits(visit_id: int, customers: list[Customer]):
     """
-    Which customers visited the shop today?
+    Shares the customers that visited the store on that tick.
+    Not all customers end up purchasing because they may not like what they see in the current catalog.
     """
-    with db.engine.begin() as connection:
-        for customer in customers:
-            result = connection.execute(sqlalchemy.text("""
-                SELECT 1
-                FROM visits
-                WHERE visit_id = :visit_id AND customer_name = :customer_name
-            """), {
-                "visit_id": visit_id,
-                "customer_name": customer.customer_name
-            })
-            existing_visit = result.fetchone()
-
-            if existing_visit:
-                # Update the visit if it exists (if needed)
-                connection.execute(sqlalchemy.text("""
-                    UPDATE visits
-                    SET character_class = :character_class, level = :level
+    success = True
+    try:
+        with db.engine.begin() as connection:
+            for customer in customers:
+                # Check if the customer visit already exists
+                result = connection.execute(sqlalchemy.text("""
+                    SELECT 1
+                    FROM visits
                     WHERE visit_id = :visit_id AND customer_name = :customer_name
                 """), {
                     "visit_id": visit_id,
-                    "customer_name": customer.customer_name,
-                    "character_class": customer.character_class,
-                    "level": customer.level
+                    "customer_name": customer.customer_name
                 })
-            else:
-                # Insert the visit if it does not exist
-                connection.execute(sqlalchemy.text("""
-                    INSERT INTO visits (visit_id, customer_name, character_class, level)
-                    VALUES (:visit_id, :customer_name, :character_class, :level)
-                """), {
-                    "visit_id": visit_id,
-                    "customer_name": customer.customer_name,
-                    "character_class": customer.character_class,
-                    "level": customer.level
-                })
-    print(customers)
-    return "OK"
+                existing_visit = result.fetchone()
+
+                if existing_visit:
+                    # Update the visit if it exists
+                    connection.execute(sqlalchemy.text("""
+                        UPDATE visits
+                        SET character_class = :character_class, level = :level
+                        WHERE visit_id = :visit_id AND customer_name = :customer_name
+                    """), {
+                        "visit_id": visit_id,
+                        "customer_name": customer.customer_name,
+                        "character_class": customer.character_class,
+                        "level": customer.level
+                    })
+                else:
+                    # Insert the visit if it does not exist
+                    connection.execute(sqlalchemy.text("""
+                        INSERT INTO visits (visit_id, customer_name, character_class, level)
+                        VALUES (:visit_id, :customer_name, :character_class, :level)
+                    """), {
+                        "visit_id": visit_id,
+                        "customer_name": customer.customer_name,
+                        "character_class": customer.character_class,
+                        "level": customer.level
+                    })
+    except Exception as e:
+        print(f"Error recording visits: {e}")
+        success = False
+
+    return {"success": success}
 
 
 @router.post("/")
 def create_cart(new_cart: Customer):
-    """ """
+    """
+    Creates a new cart for a specific customer.
+    """
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text("""
             INSERT INTO carts (customer_name, character_class, level)
@@ -149,7 +158,7 @@ def create_cart(new_cart: Customer):
             "level": new_cart.level
         })
         cart_id = result.fetchone()['cart_id']
-    return {"cart_id": cart_id}
+    return {"cart_id": str(cart_id)}
     #return {"cart_id": 1}
 
 
