@@ -168,40 +168,49 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
-    """ """
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("""
-            SELECT quantity
-            FROM cart_items
-            WHERE cart_id = :cart_id AND item_sku = :item_sku
-        """), {
-            "cart_id": cart_id,
-            "item_sku": item_sku
-        })
-        existing_item = result.fetchone()
-
-        if existing_item:
-            # Update the quantity if the item exists
-            connection.execute(sqlalchemy.text("""
-                UPDATE cart_items
-                SET quantity = :quantity
+    """
+    Updates the quantity of a specific item in a cart.
+    """
+    success = True
+    try:
+        with db.engine.begin() as connection:
+            # Check if the item already exists in the cart
+            result = connection.execute(sqlalchemy.text("""
+                SELECT quantity
+                FROM cart_items
                 WHERE cart_id = :cart_id AND item_sku = :item_sku
             """), {
-                "quantity": cart_item.quantity,
                 "cart_id": cart_id,
                 "item_sku": item_sku
             })
-        else:
-            # Insert the item if it does not exist
-            connection.execute(sqlalchemy.text("""
-                INSERT INTO cart_items (cart_id, item_sku, quantity)
-                VALUES (:cart_id, :item_sku, :quantity)
-            """), {
-                "cart_id": cart_id,
-                "item_sku": item_sku,
-                "quantity": cart_item.quantity
-            })
-    return "OK"
+            existing_item = result.fetchone()
+
+            if existing_item:
+                # Update the quantity if the item exists
+                connection.execute(sqlalchemy.text("""
+                    UPDATE cart_items
+                    SET quantity = :quantity
+                    WHERE cart_id = :cart_id AND item_sku = :item_sku
+                """), {
+                    "quantity": cart_item.quantity,
+                    "cart_id": cart_id,
+                    "item_sku": item_sku
+                })
+            else:
+                # Insert the item if it does not exist
+                connection.execute(sqlalchemy.text("""
+                    INSERT INTO cart_items (cart_id, item_sku, quantity)
+                    VALUES (:cart_id, :item_sku, :quantity)
+                """), {
+                    "cart_id": cart_id,
+                    "item_sku": item_sku,
+                    "quantity": cart_item.quantity
+                })
+    except Exception as e:
+        print(f"Error updating item quantity: {e}")
+        success = False
+
+    return {"success": success}
 
 
 class CartCheckout(BaseModel):
