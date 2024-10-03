@@ -21,8 +21,20 @@ class Barrel(BaseModel):
 @router.post("/deliver/{order_id}")
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
+    gold_qry = "SELECT gold FROM global_inventory"
+    ml_qry = "SELECT num_green_ml FROM global_inventory"
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
+        current_gold = connection.execute(sqlalchemy.text(gold_qry)).scalar()
+        current_ml = connection.execute(sqlalchemy.text(ml_qry)).scalar()
+    for barrel in barrels_delivered:
+        if barrel.potion_type[1] == 1:
+            current_ml += barrel.quantity*barrel.ml_per_barrel
+            current_gold -= barrel.price*barrel.quantity
+    new_ml_qry = f"UPDATE global_inventory SET num_green_ml = {current_ml}"
+    new_gold_qry = f"UPDATE global_inventory SET gold = {current_gold}"
+    with db.engine.begin() as connection:
+        update1 = connection.execute(sqlalchemy.text(new_ml_qry))
+        update2 = connection.execute(sqlalchemy.text(new_gold_qry))
     print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
     
     return "OK"
@@ -31,15 +43,27 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 # Gets called once a day
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
-    """ """
+    """
+    Generates a wholesale purchase plan based on the current inventory of green potions.
+    Args:
+        wholesale_catalog (List[Barrel]): A list of Barrel objects representing the wholesale catalog.
+    """
+    barrels_dictionary = {barrel.sku: barrel for barrel in wholesale_catalog}
+    barrels_needed = 0
+    green_barrel_sku = ""
+    potions_qry = "SELECT num_green_potions FROM global_inventory"
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
-    print(wholesale_catalog)
+        potions = connection.execute(sqlalchemy.text(potions_qry)).scalar()
+    if potions < 10:
+        barrels_needed += 1
+    for barrel in wholesale_catalog: 
+        if barrel.potion_type[1] == 1:
+            green_barrel_sku = barrel.sku
     
     return [
         {
-            "sku": "SMALL_GREEN_BARREL",
-            "quantity": 1,
+            "sku": green_barrel_sku,
+            "quantity": barrels_needed,
         }
     ]
 
