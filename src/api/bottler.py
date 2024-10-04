@@ -27,13 +27,15 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
     new_green_potions = 0
     for potinv in potions_delivered:
-        if potinv.potion_type == [0,1,0,0]:
+        if potinv.potion_type[1] == 1:
             new_green_potions += potinv.quantity
     qry = f"UPDATE global_inventory SET num_green_potions = {new_green_potions}"
     with db.engine.begin() as connection:
-        update1 = connection.execute(sqlalchemy.text(qry))
+        update1 = connection.execute(sqlalchemy.text(qry)) #updates amount of bottles now that they're delivered
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
     print(new_green_potions)
+
+    return "OK"
 
     return [{
         "qry1": qry,
