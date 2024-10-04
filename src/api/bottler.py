@@ -24,7 +24,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
         potions_delivered (List[PotionInventory]): A list of delivered PotionInventory objects.
         order_id (int): The order ID for the delivery.
        """
-    delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
+    #delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
     new_green_potions = 0
     for potinv in potions_delivered:
         if potinv.potion_type[1] == 1:
@@ -58,6 +58,7 @@ def get_bottle_plan():
     remainder_ml_qry = f"UPDATE global_inventory SET num_green_ml = {remainder_ml}"
     with db.engine.begin() as connection:
         update1 = connection.execute(sqlalchemy.text(remainder_ml_qry))
+    update1 = 0
     
     # Each bottle has a quantity of what proportion of red, blue, and
     # green potion to add.
@@ -74,3 +75,6 @@ def get_bottle_plan():
 if __name__ == "__main__":
     print(get_bottle_plan())
 
+
+
+#post_deliver_bottles()
