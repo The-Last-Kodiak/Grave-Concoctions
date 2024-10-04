@@ -82,10 +82,9 @@ def post_visits(visit_id: int, customers: list[Customer]):
     """
     Which customers visited the shop today?
     """
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
+    custo_diction = {custo.customer_name: custo for custo in customers}
     print(customers)
-    return "OK"
+    return {"success": True}
 
 
 @router.post("/")
@@ -93,21 +92,24 @@ def create_cart(new_cart: Customer):
     """
     Creates a new cart for a specific customer.
     """
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
+    #with db.engine.begin() as connection:
+        #cart_id = connection.execute(sqlalchemy.text(""), {"class": new_cart.character_class, "name": new_cart.customer_name}).scalar_one()
+    #return {"cart_id": cart_id}
     return {"cart_id": 1}
 
 
 class CartItem(BaseModel):
     quantity: int
 
-
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
-    """ """
+    """
+    Add cartitem to number of same items in the cart
+    """
+    cart_diction = {}
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text())
-    return "OK"
+    return {"success": True}
 
 
 class CartCheckout(BaseModel):
@@ -115,7 +117,9 @@ class CartCheckout(BaseModel):
 
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
-    """ """
+    """
+    
+    """
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text())
     return {"total_potions_bought": 1, "total_gold_paid": 50}

@@ -67,7 +67,3 @@ def get_bottle_plan():
 
 if __name__ == "__main__":
     print(get_bottle_plan())
-
-
-
-#post_deliver_bottles()
