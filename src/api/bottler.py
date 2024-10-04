@@ -24,7 +24,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
         potions_delivered (List[PotionInventory]): A list of delivered PotionInventory objects.
         order_id (int): The order ID for the delivery.
        """
-    #delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
+    delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
     new_green_potions = 0
     for potinv in potions_delivered:
         if potinv.potion_type[1] == 1:
@@ -36,13 +36,6 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     print(new_green_potions)
 
     return "OK"
-
-    return [{
-        "qry1": qry,
-        "current_potions": new_green_potions,
-        "order": order_id,
-        "delivery": potions_delivered,
-    }]
 
 
 @router.post("/plan")
