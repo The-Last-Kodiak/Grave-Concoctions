@@ -13,10 +13,8 @@ class Timestamp(BaseModel):
     hour: int
 
 @router.post("/current_time")
-def post_time(timestamp: Timestamp):
-    """
-    Share current time.
-    """
-    
-    return "OK"
+def post_time(timsta: Timestamp):
+    """Share current time."""
+    print(f"Day: {timsta.day}  Hour: {timsta.hour}")
+    return (f"Day: {timsta.day}  Hour: {timsta.hour}")
 

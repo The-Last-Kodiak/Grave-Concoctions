@@ -16,12 +16,22 @@ router = APIRouter(
 def get_inventory():
     """ """
     gold_qry = "SELECT gold FROM global_inventory"
-    potions_qry = "SELECT num_green_potions FROM global_inventory"
-    ml_qry = "SELECT num_green_ml FROM global_inventory"
+    g_potions_qry = "SELECT num_green_potions FROM global_inventory"
+    r_potions_qry = "SELECT num_red_potions FROM global_inventory"
+    b_potions_qry = "SELECT num_blue_potions FROM global_inventory"
+    gml_qry = "SELECT num_green_ml FROM global_inventory"
+    rml_qry = "SELECT num_red_ml FROM global_inventory"
+    bml_qry = "SELECT num_blue_ml FROM global_inventory"
     with db.engine.begin() as connection:
-        potions = connection.execute(sqlalchemy.text(potions_qry)).scalar()
+        g_potions = connection.execute(sqlalchemy.text(g_potions_qry)).scalar()
+        r_potions = connection.execute(sqlalchemy.text(r_potions_qry)).scalar()
+        b_potions = connection.execute(sqlalchemy.text(b_potions_qry)).scalar()
         gold = connection.execute(sqlalchemy.text(gold_qry)).scalar()
-        ml = connection.execute(sqlalchemy.text(ml_qry)).scalar()
+        gml = connection.execute(sqlalchemy.text(gml_qry)).scalar()
+        rml = connection.execute(sqlalchemy.text(rml_qry)).scalar()
+        bml = connection.execute(sqlalchemy.text(bml_qry)).scalar()
+    ml = bml + rml + gml
+    potions = g_potions + r_potions + b_potions
     return {"number_of_potions": potions, "ml_in_barrels": ml, "gold": gold}
 
 # Gets called once a day
