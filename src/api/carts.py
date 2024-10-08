@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
-
+import uuid
+import secrets
+import string
 
 router = APIRouter(
     prefix="/carts",
@@ -79,9 +81,12 @@ class Customer(BaseModel):
 
 @router.post("/visits/{visit_id}")
 def post_visits(visit_id: int, customers: list[Customer]):
-    """
-    Which customers visited the shop today?
-    """
+    """Which customers visited the shop today?"""
+    for custard in customers:
+        up1 = f"INSERT INTO npc_visits (visit_id, customer_name, character_class, level) VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level});"
+        with db.engine.begin() as connection:
+            puh = connection.execute(sqlalchemy.text(up1))
+    #up = "CREATE TABLE npc_visits (id bigint generated always as identity,visit_id int,customer_name text,character_class text,level int);"
     custo_diction = {custo.customer_name: custo for custo in customers}
     print(customers)
     return {"success": True}
@@ -89,26 +94,32 @@ def post_visits(visit_id: int, customers: list[Customer]):
 
 @router.post("/")
 def create_cart(new_cart: Customer):
-    """
-    Creates a new cart for a specific customer.
-    """
-    #with db.engine.begin() as connection:
-        #cart_id = connection.execute(sqlalchemy.text(""), {"class": new_cart.character_class, "name": new_cart.customer_name}).scalar_one()
-    #return {"cart_id": cart_id}
-    return {"cart_id": 1}
+    """Creates a new cart for a specific customer."""
+    cart_id = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(7))
+    up = f"CREATE TABLE zuto_cart_{cart_id} (id bigint generated always as identity,cart_id text,customer_name text,character_class text,level int,g_pots int,r_pots int,b_pots int);"
+    up1 = f"INSERT INTO zuto_cart_{cart_id} (cart_id, customer_name, character_class, level, g_pots, r_pots, b_pots) VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, 0,0,0);"
+    #down = f"DROP TABLE IF EXISTS zuto_cart_mmhurwi;"
+    with db.engine.begin() as connection:
+        crea = connection.execute(sqlalchemy.text(up))
+        crea = connection.execute(sqlalchemy.text(up1))
+    return {"cart_id": cart_id}
 
 
 class CartItem(BaseModel):
     quantity: int
 
 @router.post("/{cart_id}/items/{item_sku}")
-def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
-    """
-    Add cartitem to number of same items in the cart
-    """
-    cart_diction = {}
+def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
+    """Add cartitem to number of same items in the cart"""
+    #WARNING: CHANGED cart_id: int TO cart_id: str
+    g_ord, r_ord, b_ord = 0,0,0
+    order = ""
+    if item_sku == "GREEN_POTION_CONCOCTION":order = "g_pots"
+    if item_sku == "BLUE_POTION_CONCOCTION":order = "b_pots"
+    if item_sku == "RED_POTION_CONCOCTION":order = "r_pots"
+    qry = f"UPDATE zuto_cart_{cart_id} SET {order} = {cart_item.quantity}"
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
+        update = connection.execute(sqlalchemy.text(qry))
     return {"success": True}
 
 
@@ -116,10 +127,10 @@ class CartCheckout(BaseModel):
     payment: str
 
 @router.post("/{cart_id}/checkout")
-def checkout(cart_id: int, cart_checkout: CartCheckout):
-    """
+def checkout(cart_id: str, cart_checkout: CartCheckout):
+    #WARNING: CHANGED cart_id: int TO cart_id: str
+    """"""
     
-    """
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text())
     return {"total_potions_bought": 1, "total_gold_paid": 50}
