@@ -50,16 +50,16 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 def get_bottle_plan():
     """Go from barrel(ml) to bottle."""
     ml_types = {
-        "green": {"ml_color": [0,100,0,0], "needed": 0, "ml_qry": "SELECT num_green_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_green_ml ="},
-        "blue": {"ml_color": [0,0,100,0], "needed": 0, "ml_qry": "SELECT num_blue_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_blue_ml ="},
-        "red": {"ml_color": [100,0,0,0], "needed": 0, "ml_qry": "SELECT num_red_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_red_ml ="}
+        "green": {"ml_color": [0,100,0,0], "needed": 0, "ml_qry": "SELECT num_green_ml FROM global_inventory", "ml_upd": "num_green_ml"},
+        "blue": {"ml_color": [0,0,100,0], "needed": 0, "ml_qry": "SELECT num_blue_ml FROM global_inventory", "ml_upd": "num_blue_ml"},
+        "red": {"ml_color": [100,0,0,0], "needed": 0, "ml_qry": "SELECT num_red_ml FROM global_inventory", "ml_upd": "num_red_ml"}
         }
 
     with db.engine.begin() as connection:
         for type in ml_types:
             ml_types[type]["ml"] = connection.execute(sqlalchemy.text(ml_types[type]["ml_qry"])).scalar()
             ml_types[type]["potion_ord"], ml_types[type]["remain_ml"] = divmod(ml_types[type]["ml"], 100)
-            remainder_ml_qry = f"{ml_types[type]["ml_upd"]} {ml_types[type]["remain_ml"]}"
+            remainder_ml_qry = f"UPDATE global_inventory SET {ml_types[type]["ml_upd"]} = {ml_types[type]["remain_ml"]}"
             update1 = connection.execute(sqlalchemy.text(remainder_ml_qry))
     
     # Each bottle has a quantity of what proportion of red, blue, and
