@@ -25,9 +25,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
         order_id (int): The order ID for the delivery.
        """
     delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
-    new_g_potions = 0
-    new_r_potions = 0
-    new_b_potions = 0
+    new_g_potions = new_r_potions = new_b_potions = 0
     for potinv in potions_delivered:
         if potinv.potion_type[1] == 1:
             new_g_potions += potinv.quantity
@@ -51,30 +49,32 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 @router.post("/plan")
 def get_bottle_plan():
     """Go from barrel(ml) to bottle."""
-    gml_qry = "SELECT num_green_ml FROM global_inventory"
-    rml_qry = "SELECT num_red_ml FROM global_inventory"
-    bml_qry = "SELECT num_blue_ml FROM global_inventory"
+    ml_types = {
+        "green": {"ml_color": [0,1,0,0], "needed": 0, "ml_qry": "SELECT num_green_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_green_ml ="},
+        "blue": {"ml_color": [0,0,1,0], "needed": 0, "ml_qry": "SELECT num_blue_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_blue_ml ="},
+        "red": {"ml_color": [1,0,0,0], "needed": 0, "ml_qry": "SELECT num_red_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_red_ml ="}
+        }
 
     with db.engine.begin() as connection:
-        gml = connection.execute(sqlalchemy.text(gml_qry)).scalar()
-        rml = connection.execute(sqlalchemy.text(rml_qry)).scalar()
-        bml = connection.execute(sqlalchemy.text(bml_qry)).scalar()
-    g_potion_order, remainder_gml = divmod(gml, 100)
-    r_potion_order, remainder_rml = divmod(rml, 100)
-    b_potion_order, remainder_bml = divmod(bml, 100)
-    remainder_gml_qry = f"UPDATE global_inventory SET num_green_ml = {remainder_gml}"
-    remainder_rml_qry = f"UPDATE global_inventory SET num_green_ml = {remainder_rml}"
-    remainder_bml_qry = f"UPDATE global_inventory SET num_green_ml = {remainder_bml}"
-    with db.engine.begin() as connection:
-        update1 = connection.execute(sqlalchemy.text(remainder_gml_qry))
-        update2 = connection.execute(sqlalchemy.text(remainder_rml_qry))
-        update3 = connection.execute(sqlalchemy.text(remainder_bml_qry))
+        for type in ml_types:
+            ml_types[type]["ml"] = connection.execute(sqlalchemy.text(ml_types[type]["ml_qry"])).scalar()
+            ml_types[type]["potion_ord"], ml_types[type]["remain_ml"] = divmod(ml_types[type]["ml"], 100)
+            remainder_ml_qry = f"{ml_types[type]["ml_upd"]} {ml_types[type]["remain_ml"]}"
+            update1 = connection.execute(sqlalchemy.text(remainder_ml_qry))
     
     # Each bottle has a quantity of what proportion of red, blue, and
     # green potion to add.
     # Expressed in integers from 1 to 100 that must sum up to 100.
     # Initial logic: bottle all barrels into red potions.
+    purchase_plan = [
+        {
+            "potion_type": ml_types[potion]["ml_color"],
+            "quantity": ml_types[potion]["potion_ord"]
+        }
+        for potion in ml_types if ml_types[potion]["potion_ord"] > 0
+    ]
 
+    return purchase_plan
     return [
             {
                 "potion_type": [0, 100, 0, 0],
