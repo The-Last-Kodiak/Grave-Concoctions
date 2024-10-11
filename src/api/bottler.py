@@ -50,9 +50,9 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 def get_bottle_plan():
     """Go from barrel(ml) to bottle."""
     ml_types = {
-        "green": {"ml_color": [0,1,0,0], "needed": 0, "ml_qry": "SELECT num_green_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_green_ml ="},
-        "blue": {"ml_color": [0,0,1,0], "needed": 0, "ml_qry": "SELECT num_blue_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_blue_ml ="},
-        "red": {"ml_color": [1,0,0,0], "needed": 0, "ml_qry": "SELECT num_red_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_red_ml ="}
+        "green": {"ml_color": [0,100,0,0], "needed": 0, "ml_qry": "SELECT num_green_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_green_ml ="},
+        "blue": {"ml_color": [0,0,100,0], "needed": 0, "ml_qry": "SELECT num_blue_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_blue_ml ="},
+        "red": {"ml_color": [100,0,0,0], "needed": 0, "ml_qry": "SELECT num_red_ml FROM global_inventory", "ml_upd": "UPDATE global_inventory SET num_red_ml ="}
         }
 
     with db.engine.begin() as connection:
@@ -65,7 +65,7 @@ def get_bottle_plan():
     # Each bottle has a quantity of what proportion of red, blue, and
     # green potion to add.
     # Expressed in integers from 1 to 100 that must sum up to 100.
-    # Initial logic: bottle all barrels into red potions.
+    # Initial logic: bottle all barrels into potions.
     purchase_plan = [
         {
             "potion_type": ml_types[potion]["ml_color"],
