@@ -63,51 +63,56 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """
     barrels_dictionary = {barrel.sku: barrel for barrel in wholesale_catalog}
     
-    green_barrels_needed = 0
-    blue_barrels_needed = 0
-    red_barrels_needed = 0
-    green_barrel_sku = ""
-    red_barrel_sku = ""
-    blue_barrel_sku = ""
-    green_barrel_cost = float('inf')
-    red_barrel_cost = float('inf')
-    blue_barrel_cost = float('inf')
+    # Mapping potion types to their corresponding attributes
+    potion_types = {
+        "green": {"sku": "", "cost": float('inf'), "needed": 0, "potion_qry": "SELECT num_green_potions FROM global_inventory"},
+        "blue": {"sku": "", "cost": float('inf'), "needed": 0, "potion_qry": "SELECT num_blue_potions FROM global_inventory"},
+        "red": {"sku": "", "cost": float('inf'), "needed": 0, "potion_qry": "SELECT num_red_potions FROM global_inventory"}
+        }
 
-    for barrel in wholesale_catalog: 
+    # Identify the lowest cost barrels for each potion type
+    for barrel in wholesale_catalog:
+        potion_type = None
         if barrel.potion_type[1] == 1:
-            green_barrel_sku = barrel.sku
-            green_barrel_cost = barrel.price
+            potion_type = "green"
         elif barrel.potion_type[2] == 1:
-            blue_barrel_sku = barrel.sku
-            blue_barrel_cost = barrel.price
+            potion_type = "blue"
         elif barrel.potion_type[0] == 1:
-            red_barrel_sku = barrel.sku
-            red_barrel_cost = barrel.price
+            potion_type = "red"
+        
+        if potion_type and barrel.price < potion_types[potion_type]["cost"]:
+            potion_types[potion_type]["sku"] = barrel.sku
+            potion_types[potion_type]["cost"] = barrel.price
     
-    green_qry = "SELECT num_green_potions FROM global_inventory"
-    red_qry = "SELECT num_red_potions FROM global_inventory"
-    blue_qry = "SELECT num_blue_potions FROM global_inventory"
+    # Fetch the current inventory and gold
     gold_qry = "SELECT gold FROM global_inventory"
     with db.engine.begin() as connection:
-        green_potions = connection.execute(sqlalchemy.text(green_qry)).scalar()
-        red_potions = connection.execute(sqlalchemy.text(red_qry)).scalar()
-        blue_potions = connection.execute(sqlalchemy.text(blue_qry)).scalar()
+        for potion in potion_types:
+            potion_types[potion]["current"] = connection.execute(sqlalchemy.text(potion_types[potion]["potion_qry"])).scalar()
         gold = connection.execute(sqlalchemy.text(gold_qry)).scalar()
-    
-    if green_potions < 10:
-        if gold >= green_barrel_cost:
-            green_barrels_needed += 1
-            gold -= green_barrel_cost
-    if blue_potions < 10:
-        if gold >= blue_barrel_cost:
-            blue_barrels_needed += 1
-            gold -= blue_barrel_cost
-    if red_potions < 10:
-        if gold >= red_barrel_cost:
-            red_barrels_needed += 1
-            gold -= red_barrel_cost
 
-    return [
+    # Purchase logic
+    while gold > 0:
+        # Find the potion type with the least inventory
+        min_potion = min(potion_types, key=lambda x: potion_types[x]["current"])
+        min_cost = potion_types[min_potion]["cost"]
+
+        if gold >= min_cost and potion_types[min_potion]["current"] < 10:
+            gold -= min_cost
+            potion_types[min_potion]["needed"] += 1
+            potion_types[min_potion]["current"] += 1
+        else:
+            break
+    
+    purchase_plan = [
+        {"sku": potion_types[potion]["sku"], "quantity": potion_types[potion]["needed"]}
+        for potion in potion_types if potion_types[potion]["needed"] > 0
+    ]
+
+    return purchase_plan
+    
+
+    purchase_plan = [
         {
             "sku": green_barrel_sku,
             "quantity": green_barrels_needed,
@@ -121,4 +126,5 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             "quantity": blue_barrels_needed,
         }
     ]
-
+    # Filter out barrels with quantity <= 0
+    return [barrel for barrel in purchase_plan if barrel["quantity"] > 0]
