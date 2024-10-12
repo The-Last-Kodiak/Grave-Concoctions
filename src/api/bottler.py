@@ -59,7 +59,7 @@ def get_bottle_plan():
         for type in ml_types:
             ml_types[type]["ml"] = connection.execute(sqlalchemy.text(ml_types[type]["ml_qry"])).scalar()
             ml_types[type]["potion_ord"], ml_types[type]["remain_ml"] = divmod(ml_types[type]["ml"], 100)
-            remainder_ml_qry = f"UPDATE global_inventory SET {ml_types[type]['ml_upd']} = {ml_types[type]['remain_ml']}"
+            remainder_ml_qry = f"UPDATE global_inventory SET {ml_types[type]['ml_upd']} = {ml_types[type]['remain_ml']}" #Pay attention to the way I quoted, otherwise it would not work
             update1 = connection.execute(sqlalchemy.text(remainder_ml_qry))
     
     # Each bottle has a quantity of what proportion of red, blue, and

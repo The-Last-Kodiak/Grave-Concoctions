@@ -96,12 +96,15 @@ def post_visits(visit_id: int, customers: list[Customer]):
 def create_cart(new_cart: Customer):
     """Creates a new cart for a specific customer."""
     cart_id = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(7))
-    up = f"CREATE TABLE zuto_cart_{cart_id} (id bigint generated always as identity,cart_id text,customer_name text,character_class text,level int,g_pots int,r_pots int,b_pots int);"
-    up1 = f"INSERT INTO zuto_cart_{cart_id} (cart_id, customer_name, character_class, level, g_pots, r_pots, b_pots) VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, 0,0,0);"
-    #down = f"DROP TABLE IF EXISTS zuto_cart_mmhurwi;"
+    green_price = 50  # example price for green potions
+    red_price = 50    # example price for red potions
+    blue_price = 50   # example price for blue potions
+    insert_command = f"""
+    INSERT INTO zuto_carts (cart_id, customer_name, character_class, level, g_pots, r_pots, b_pots, g_price, r_price, b_price)
+    VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, 0, 0, 0, {green_price}, {red_price}, {blue_price}); """
+
     with db.engine.begin() as connection:
-        crea = connection.execute(sqlalchemy.text(up))
-        crea = connection.execute(sqlalchemy.text(up1))
+        connection.execute(sqlalchemy.text(insert_command))
     return {"cart_id": cart_id}
 
 
@@ -112,26 +115,56 @@ class CartItem(BaseModel):
 def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
     """Add cartitem to number of same items in the cart"""
     #WARNING: CHANGED cart_id: int TO cart_id: str
-    g_ord, r_ord, b_ord = 0,0,0
-    order = ""
-    if item_sku == "GREEN_POTION_CONCOCTION":order = "g_pots"
-    if item_sku == "BLUE_POTION_CONCOCTION":order = "b_pots"
-    if item_sku == "RED_POTION_CONCOCTION":order = "r_pots"
-    qry = f"UPDATE zuto_cart_{cart_id} SET {order} = {cart_item.quantity}"
-    with db.engine.begin() as connection:
-        update = connection.execute(sqlalchemy.text(qry))
-    return {"success": True}
+    order = {
+        "GREEN_POTION_CONCOCTION": "g_pots",
+        "BLUE_POTION_CONCOCTION": "b_pots",
+        "RED_POTION_CONCOCTION": "r_pots"
+    }.get(item_sku)
+
+    if order:
+        qry = f"UPDATE zuto_carts SET {order} = {cart_item.quantity} WHERE cart_id = '{cart_id}'"
+        with db.engine.begin() as connection:
+            connection.execute(sqlalchemy.text(qry))
+        return {"success": True}
+    else:
+        return {"error": "Invalid item SKU"}, 400
 
 
 class CartCheckout(BaseModel):
     payment: str
+#changing payment: str to payment: int?
 
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: str, cart_checkout: CartCheckout):
     #WARNING: CHANGED cart_id: int TO cart_id: str
-    """"""
-    
+    """Processes the checkout for a specific cart."""
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
-    return {"total_potions_bought": 1, "total_gold_paid": 50}
+        # Fetch the cart items and their quantities, including prices
+        qry = f"""
+        SELECT g_pots, r_pots, b_pots, g_price, r_price, b_price FROM zuto_carts WHERE cart_id = '{cart_id}' """
+        result = connection.execute(sqlalchemy.text(qry)).fetchone()
+        if not result:
+            return {"error": "Cart not found"}, 404
+        # Access tuple elements by position
+        g_pots, r_pots, b_pots, g_price, r_price, b_price = result
 
+        total_potions_bought = g_pots + r_pots + b_pots
+        total_gold_paid = (g_pots * g_price + r_pots * r_price + b_pots * b_price)
+        # Update global inventory for potions
+        qry = "SELECT num_green_potions, num_red_potions, num_blue_potions, gold FROM global_inventory"
+        green_potions, red_potions, blue_potions, gold = connection.execute(sqlalchemy.text(qry)).fetchone()
+        print(f"Old Green Potions: {green_potions}, Old Red Potions: {red_potions}, Old Blue Potions: {blue_potions}, Old Gold: {gold}")
+        new_green_potions = green_potions - g_pots
+        new_red_potions = red_potions - r_pots
+        new_blue_potions = blue_potions - b_pots
+        new_gold = gold + total_gold_paid
+        update_qry = f"""UPDATE global_inventory SET num_green_potions = {new_green_potions}, num_red_potions = {new_red_potions}, num_blue_potions = {new_blue_potions}, gold = {new_gold} """
+        connection.execute(sqlalchemy.text(update_qry))
+        print(f"New Green Potions: {new_green_potions}, New Red Potions: {new_red_potions}, New Blue Potions: {new_blue_potions}, NPC Paid: {total_gold_paid}, New Gold: {new_gold}")
+        print(f"NPC Payment String(What could it mean?): {cart_checkout.payment}")
+        
+        # Clear the cart after checkout
+        clear_cart_qry = f"""UPDATE zuto_carts SET g_pots = 0, r_pots = 0, b_pots = 0 WHERE cart_id = '{cart_id}' """
+        new_gold_qry = f"UPDATE global_inventory SET gold = {gold}"
+
+        return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
