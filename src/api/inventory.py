@@ -35,12 +35,12 @@ def get_capacity_plan():
     and 1 capacity for 10000 ml of potion. Each additional 
     capacity unit costs 1000 gold.
     """
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
+    #with db.engine.begin() as connection:
+        #result = connection.execute(sqlalchemy.text())
 
     return {
-        "potion_capacity": 0,
-        "ml_capacity": 0
+        "potion_capacity": 50,
+        "ml_capacity": 10000
         }
 
 class CapacityPurchase(BaseModel):
@@ -55,6 +55,6 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
     and 1 capacity for 10000 ml of potion. Each additional 
     capacity unit costs 1000 gold.
     """
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
+    #with db.engine.begin() as connection:
+        #result = connection.execute(sqlalchemy.text())
     return "OK"
