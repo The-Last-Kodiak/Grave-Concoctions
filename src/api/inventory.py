@@ -14,25 +14,18 @@ router = APIRouter(
 
 @router.get("/audit")
 def get_inventory():
-    """ """
-    gold_qry = "SELECT gold FROM global_inventory"
-    g_potions_qry = "SELECT num_green_potions FROM global_inventory"
-    r_potions_qry = "SELECT num_red_potions FROM global_inventory"
-    b_potions_qry = "SELECT num_blue_potions FROM global_inventory"
-    gml_qry = "SELECT num_green_ml FROM global_inventory"
-    rml_qry = "SELECT num_red_ml FROM global_inventory"
-    bml_qry = "SELECT num_blue_ml FROM global_inventory"
+    """"""
+    qry = "SELECT num_green_potions, num_red_potions, num_blue_potions, num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory"
     with db.engine.begin() as connection:
-        g_potions = connection.execute(sqlalchemy.text(g_potions_qry)).scalar()
-        r_potions = connection.execute(sqlalchemy.text(r_potions_qry)).scalar()
-        b_potions = connection.execute(sqlalchemy.text(b_potions_qry)).scalar()
-        gold = connection.execute(sqlalchemy.text(gold_qry)).scalar()
-        gml = connection.execute(sqlalchemy.text(gml_qry)).scalar()
-        rml = connection.execute(sqlalchemy.text(rml_qry)).scalar()
-        bml = connection.execute(sqlalchemy.text(bml_qry)).scalar()
-    ml = bml + rml + gml
-    potions = g_potions + r_potions + b_potions
-    return {"number_of_potions": potions, "ml_in_barrels": ml, "gold": gold}
+        green_potions, red_potions, blue_potions, green_ml, red_ml, blue_ml, gold = connection.execute(sqlalchemy.text(qry)).fetchone()
+    total_potions = green_potions + red_potions + blue_potions
+    total_ml = green_ml + red_ml + blue_ml
+    print(f"Green Potions: {green_potions}, Red Potions: {red_potions}, Blue Potions: {blue_potions}")
+    print(f"Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}")
+    print(f"Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
+    
+    return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold }
+
 
 # Gets called once a day
 @router.post("/plan")
