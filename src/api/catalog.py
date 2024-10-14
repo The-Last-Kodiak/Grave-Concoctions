@@ -54,3 +54,4 @@ def get_catalog():
     
     print(f"CALLED CATALOG: {cata_diction}")
     return cata_diction
+
