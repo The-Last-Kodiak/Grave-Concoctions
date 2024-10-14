@@ -27,11 +27,11 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
     new_g_potions = new_r_potions = new_b_potions = 0
     for potinv in potions_delivered:
-        if potinv.potion_type[1] == 1:
+        if potinv.potion_type[1] == 100:
             new_g_potions += potinv.quantity
-        if potinv.potion_type[0] == 1:
+        if potinv.potion_type[0] == 100:
             new_r_potions += potinv.quantity
-        if potinv.potion_type[2] == 1:
+        if potinv.potion_type[2] == 100:
             new_b_potions += potinv.quantity
     g_qry = f"UPDATE global_inventory SET num_green_potions = {new_g_potions}"
     r_qry = f"UPDATE global_inventory SET num_red_potions = {new_r_potions}"
