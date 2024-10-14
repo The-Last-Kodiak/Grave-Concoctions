@@ -48,7 +48,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
         update2 = connection.execute(sqlalchemy.text(new_gold_qry))
         update3 = connection.execute(sqlalchemy.text(new_rml_qry))
         update4 = connection.execute(sqlalchemy.text(new_bml_qry))
-    print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
+    print(f"POST DELIVERED BARRELS. Barrels Delievered: {barrels_delivered} order_id: {order_id}")
     
     return "OK"
 
@@ -108,6 +108,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         {"sku": potion_types[potion]["sku"], "quantity": potion_types[potion]["needed"]}
         for potion in potion_types if potion_types[potion]["needed"] > 0
     ]
+    print(f"BARREL PURCHASE PLAN CALLED. SHE GAVE: {wholesale_catalog}  PLAN RETURNED: {purchase_plan}")
 
     return purchase_plan
     

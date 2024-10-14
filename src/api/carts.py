@@ -88,7 +88,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
             puh = connection.execute(sqlalchemy.text(up1))
     #up = "CREATE TABLE npc_visits (id bigint generated always as identity,visit_id int,customer_name text,character_class text,level int);"
     custo_diction = {custo.customer_name: custo for custo in customers}
-    print(customers)
+    print(f"CUSTOMERS VISIT: {customers}")
     return {"success": True}
 
 
@@ -105,6 +105,7 @@ def create_cart(new_cart: Customer):
 
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(insert_command))
+    print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}")
     return {"cart_id": cart_id}
 
 
@@ -116,9 +117,9 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
     """Add cartitem to number of same items in the cart"""
     #WARNING: CHANGED cart_id: int TO cart_id: str
     order = {
-        "GREEN_POTION_CONCOCTION": "g_pots",
-        "BLUE_POTION_CONCOCTION": "b_pots",
-        "RED_POTION_CONCOCTION": "r_pots"
+        "GREEN_CONCOCTION": "g_pots",
+        "BLUE_CONCOCTION": "b_pots",
+        "RED_CONCOCTION": "r_pots"
     }.get(item_sku)
 
     if order:

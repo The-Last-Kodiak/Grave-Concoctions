@@ -20,7 +20,7 @@ def get_inventory():
         green_potions, red_potions, blue_potions, green_ml, red_ml, blue_ml, gold = connection.execute(sqlalchemy.text(qry)).fetchone()
     total_potions = green_potions + red_potions + blue_potions
     total_ml = green_ml + red_ml + blue_ml
-    print(f"Green Potions: {green_potions}, Red Potions: {red_potions}, Blue Potions: {blue_potions}")
+    print(f"CALLED GET INVENTORY. Green Potions: {green_potions}, Red Potions: {red_potions}, Blue Potions: {blue_potions}")
     print(f"Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}")
     print(f"Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
     

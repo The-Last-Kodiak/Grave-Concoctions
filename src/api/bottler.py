@@ -40,7 +40,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
         update1 = connection.execute(sqlalchemy.text(g_qry)) #updates amount of bottles now that they're delivered
         update2 = connection.execute(sqlalchemy.text(r_qry))
         update3 = connection.execute(sqlalchemy.text(b_qry))
-    print(f"potions delievered: {potions_delivered} order_id: {order_id}")
+    print(f"CALLED BOTTLES DELIVERY. Potions delievered: {potions_delivered} order_id: {order_id}")
     print(f"Green Potions:{new_g_potions} Red Potions:{new_r_potions} Blue Potions:{new_b_potions}")
     
     return f"Green Potions:{new_g_potions} Red Potions:{new_r_potions} Blue Potions:{new_b_potions}"
@@ -58,9 +58,11 @@ def get_bottle_plan():
     with db.engine.begin() as connection:
         for type in ml_types:
             ml_types[type]["ml"] = connection.execute(sqlalchemy.text(ml_types[type]["ml_qry"])).scalar()
+            print(f"CALLED get_bottle_plan. BEFORE {type} ML: {ml_types[type]["ml"]}")
             ml_types[type]["potion_ord"], ml_types[type]["remain_ml"] = divmod(ml_types[type]["ml"], 100)
             remainder_ml_qry = f"UPDATE global_inventory SET {ml_types[type]['ml_upd']} = {ml_types[type]['remain_ml']}" #Pay attention to the way I quoted, otherwise it would not work
             update1 = connection.execute(sqlalchemy.text(remainder_ml_qry))
+            print(f"AFTER {type} ML: {ml_types[type]['remain_ml']}")
     
     # Each bottle has a quantity of what proportion of red, blue, and
     # green potion to add.
@@ -73,7 +75,7 @@ def get_bottle_plan():
         }
         for potion in ml_types if ml_types[potion]["potion_ord"] > 0
     ]
-
+    print(f"SENDING PURCHASE PLAN: {purchase_plan}")
     return purchase_plan
     return [
             {
