@@ -29,7 +29,7 @@ def get_catalog():
     cata_diction = []
     if green_potions > 1:
         cata_diction.append({
-            "sku": "GREEN_POTION_CONCOCTION",
+            "sku": "GREEN_CONCOCTION",
             "name": "green concoction",
             "quantity": green_potions,
             "price": 50,
@@ -37,7 +37,7 @@ def get_catalog():
         })
     if blue_potions > 1:
         cata_diction.append({
-            "sku": "BLUE_POTION_CONCOCTION",
+            "sku": "BLUE_CONCOCTION",
             "name": "blue concoction",
             "quantity": blue_potions,
             "price": 50,
@@ -45,7 +45,7 @@ def get_catalog():
         })
     if red_potions > 1:
         cata_diction.append({
-            "sku": "RED_POTION_CONCOCTION",
+            "sku": "RED_CONCOCTION",
             "name": "red concoction",
             "quantity": red_potions,
             "price": 50,
