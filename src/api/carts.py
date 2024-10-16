@@ -121,7 +121,7 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
         "BLUE_CONCOCTION": "b_pots",
         "RED_CONCOCTION": "r_pots"
     }.get(item_sku)
-
+    print(f"USER: {cart_id} added {item_sku} to cart")
     if order:
         qry = f"UPDATE zuto_carts SET {order} = {cart_item.quantity} WHERE cart_id = '{cart_id}'"
         with db.engine.begin() as connection:
@@ -139,6 +139,7 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: str, cart_checkout: CartCheckout):
     #WARNING: CHANGED cart_id: int TO cart_id: str
     """Processes the checkout for a specific cart."""
+    print(f"This customer has cart id: {cart_id}")
     with db.engine.begin() as connection:
         # Fetch the cart items and their quantities, including prices
         qry = f"""
@@ -154,7 +155,7 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
         # Update global inventory for potions
         qry = "SELECT num_green_potions, num_red_potions, num_blue_potions, gold FROM global_inventory"
         green_potions, red_potions, blue_potions, gold = connection.execute(sqlalchemy.text(qry)).fetchone()
-        print(f"Old Green Potions: {green_potions}, Old Red Potions: {red_potions}, Old Blue Potions: {blue_potions}, Old Gold: {gold}")
+        print(f"USER:{cart_id} Old Green Potions: {green_potions}, Old Red Potions: {red_potions}, Old Blue Potions: {blue_potions}, Old Gold: {gold}")
         new_green_potions = green_potions - g_pots
         new_red_potions = red_potions - r_pots
         new_blue_potions = blue_potions - b_pots
