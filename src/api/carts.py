@@ -147,6 +147,7 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
     #WARNING: CHANGED cart_id: int TO cart_id: str
     """Processes the checkout for a specific cart."""
     print(f"This customer has cart id: {cart_id}")
+    print(f"NPC Payment String(What could it mean?): {cart_checkout.payment}")
     with db.engine.begin() as connection:
         # Fetch the cart items and their quantities, including prices
         qry = f"""
@@ -161,7 +162,7 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
         total_gold_paid = (g_pots * g_price + r_pots * r_price + b_pots * b_price)
 
         qry = "SELECT gold FROM global_inventory"
-        gold = connection.execute(sqlalchemy.text(qry)).fetchone()
+        gold = connection.execute(sqlalchemy.text(qry)).scalar()
         print(f"USER:{cart_id}  Old Gold: {gold}")
         new_gold = gold + total_gold_paid
         update_qry = f"UPDATE global_inventory SET gold = {new_gold}"
