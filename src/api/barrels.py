@@ -20,10 +20,10 @@ class Barrel(BaseModel):
 @router.post("/deliver/{order_id}")
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     """ """
-    gold_qry = "SELECT gold FROM global_inventory"
-    g_qry = "SELECT num_green_ml FROM global_inventory"
-    r_qry = "SELECT num_red_ml FROM global_inventory"
-    b_qry = "SELECT num_blue_ml FROM global_inventory"
+    gold_qry = "SELECT gold FROM gl_inv"
+    g_qry = "SELECT num_green_ml FROM gl_inv"
+    r_qry = "SELECT num_red_ml FROM gl_inv"
+    b_qry = "SELECT num_blue_ml FROM gl_inv"
     with db.engine.begin() as connection:
         current_gold = connection.execute(sqlalchemy.text(gold_qry)).scalar()
         current_gml = connection.execute(sqlalchemy.text(g_qry)).scalar()
@@ -39,10 +39,10 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
         if barrel.potion_type[2] == 1:
             current_bml += barrel.quantity*barrel.ml_per_barrel
             current_gold -= barrel.price*barrel.quantity
-    new_gml_qry = f"UPDATE global_inventory SET num_green_ml = {current_gml}"
-    new_rml_qry = f"UPDATE global_inventory SET num_red_ml = {current_rml}"
-    new_bml_qry = f"UPDATE global_inventory SET num_blue_ml = {current_bml}"
-    new_gold_qry = f"UPDATE global_inventory SET gold = {current_gold}"
+    new_gml_qry = f"UPDATE gl_inv SET num_green_ml = {current_gml}"
+    new_rml_qry = f"UPDATE gl_inv SET num_red_ml = {current_rml}"
+    new_bml_qry = f"UPDATE gl_inv SET num_blue_ml = {current_bml}"
+    new_gold_qry = f"UPDATE gl_inv SET gold = {current_gold}"
     with db.engine.begin() as connection:
         update1 = connection.execute(sqlalchemy.text(new_gml_qry))
         update2 = connection.execute(sqlalchemy.text(new_gold_qry))
@@ -63,12 +63,12 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     barrels_dictionary = {barrel.sku: barrel for barrel in wholesale_catalog}
     
     # Fetch the current inventory and gold
-    gold_qry = "SELECT gold FROM global_inventory"
+    gold_qry = "SELECT gold FROM gl_inv"
     potion_qrys = {
-        "green": "SELECT num_green_potions FROM global_inventory",
-        "blue": "SELECT num_blue_potions FROM global_inventory",
-        "red": "SELECT num_red_potions FROM global_inventory",
-        "dark": "SELECT num_dark_potions FROM global_inventory"
+        "green": "SELECT num_green_potions FROM gl_inv",
+        "blue": "SELECT num_blue_potions FROM gl_inv",
+        "red": "SELECT num_red_potions FROM gl_inv",
+        "dark": "SELECT num_dark_potions FROM gl_inv"
     }
 
     with db.engine.begin() as connection:

@@ -15,7 +15,7 @@ router = APIRouter(
 @router.get("/audit")
 def get_inventory():
     """"""
-    qry = "SELECT num_green_potions, num_red_potions, num_blue_potions, num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory"
+    qry = "SELECT num_green_potions, num_red_potions, num_blue_potions, num_green_ml, num_red_ml, num_blue_ml, gold FROM gl_inv"
     with db.engine.begin() as connection:
         green_potions, red_potions, blue_potions, green_ml, red_ml, blue_ml, gold = connection.execute(sqlalchemy.text(qry)).fetchone()
     total_potions = green_potions + red_potions + blue_potions

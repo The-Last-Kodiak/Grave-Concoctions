@@ -126,9 +126,9 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
     if potion_order_tuple:
         potion_column, order_column = potion_order_tuple
         with db.engine.begin() as connection:
-            potion_count = connection.execute(sqlalchemy.text(f"SELECT {potion_column} FROM global_inventory")).scalar()
+            potion_count = connection.execute(sqlalchemy.text(f"SELECT {potion_column} FROM gl_inv")).scalar()
             potion_count -= cart_item.quantity
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_column} = {potion_count}"))
+            connection.execute(sqlalchemy.text(f"UPDATE gl_inv SET {potion_column} = {potion_count}"))
             connection.execute(sqlalchemy.text(f"UPDATE zuto_carts SET {order_column} = {cart_item.quantity} WHERE cart_id = '{cart_id}'"))
             print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
 
@@ -150,8 +150,7 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
     print(f"NPC Payment String(What could it mean?): {cart_checkout.payment}")
     with db.engine.begin() as connection:
         # Fetch the cart items and their quantities, including prices
-        qry = f"""
-        SELECT g_pots, r_pots, b_pots, g_price, r_price, b_price FROM zuto_carts WHERE cart_id = '{cart_id}' """
+        qry = f"""SELECT g_pots, r_pots, b_pots, g_price, r_price, b_price FROM zuto_carts WHERE cart_id = '{cart_id}' """
         result = connection.execute(sqlalchemy.text(qry)).fetchone()
         if not result:
             return {"error": "Cart not found"}, 404
@@ -161,12 +160,12 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
         total_potions_bought = g_pots + r_pots + b_pots
         total_gold_paid = (g_pots * g_price + r_pots * r_price + b_pots * b_price)
 
-        qry = "SELECT gold FROM global_inventory"
+        qry = "SELECT gold FROM gl_inv"
         gold = connection.execute(sqlalchemy.text(qry)).scalar()
         print(f"USER:{cart_id}  Old Gold: {gold}")
         new_gold = gold + total_gold_paid
-        update_qry = f"UPDATE global_inventory SET gold = {new_gold}"
-        connection.execute(sqlalchemy.text(update_qry))
+        #update_qry = f"UPDATE gl_inv SET gold = {new_gold}"
+        connection.execute(sqlalchemy.text(f"UPDATE gl_inv SET gold = {new_gold}"))
         print(f"NPC Paid: {total_gold_paid}, New Gold: {new_gold}")
         print(f"NPC Payment String(What could it mean?): {cart_checkout.payment}")
         
