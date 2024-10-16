@@ -115,20 +115,27 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
     """Add cartitem to number of same items in the cart"""
-    #WARNING: CHANGED cart_id: int TO cart_id: str
-    order = {
-        "GREEN_CONCOCTION": "g_pots",
-        "BLUE_CONCOCTION": "b_pots",
-        "RED_CONCOCTION": "r_pots"
-    }.get(item_sku)
-    print(f"USER: {cart_id} added {item_sku} to cart")
-    if order:
-        qry = f"UPDATE zuto_carts SET {order} = {cart_item.quantity} WHERE cart_id = '{cart_id}'"
+    # WARNING: CHANGED cart_id: int TO cart_id: str
+    mapping = {
+        "GREEN_CONCOCTION": ("num_green_potions", "g_pots"),
+        "BLUE_CONCOCTION": ("num_blue_potions", "b_pots"),
+        "RED_CONCOCTION": ("num_red_potions", "r_pots")
+    }
+    potion_order_tuple = mapping.get(item_sku)
+
+    if potion_order_tuple:
+        potion_column, order_column = potion_order_tuple
         with db.engine.begin() as connection:
-            connection.execute(sqlalchemy.text(qry))
+            potion_count = connection.execute(sqlalchemy.text(f"SELECT {potion_column} FROM global_inventory")).scalar()
+            potion_count -= cart_item.quantity
+            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_column} = {potion_count}"))
+            connection.execute(sqlalchemy.text(f"UPDATE zuto_carts SET {order_column} = {cart_item.quantity} WHERE cart_id = '{cart_id}'"))
+            print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
+
         return {"success": True}
     else:
         return {"error": "Invalid item SKU"}, 400
+
 
 
 class CartCheckout(BaseModel):
@@ -147,26 +154,21 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
         result = connection.execute(sqlalchemy.text(qry)).fetchone()
         if not result:
             return {"error": "Cart not found"}, 404
-        # Access tuple elements by position
+        
         g_pots, r_pots, b_pots, g_price, r_price, b_price = result
 
         total_potions_bought = g_pots + r_pots + b_pots
         total_gold_paid = (g_pots * g_price + r_pots * r_price + b_pots * b_price)
-        # Update global inventory for potions
-        qry = "SELECT num_green_potions, num_red_potions, num_blue_potions, gold FROM global_inventory"
-        green_potions, red_potions, blue_potions, gold = connection.execute(sqlalchemy.text(qry)).fetchone()
-        print(f"USER:{cart_id} Old Green Potions: {green_potions}, Old Red Potions: {red_potions}, Old Blue Potions: {blue_potions}, Old Gold: {gold}")
-        new_green_potions = green_potions - g_pots
-        new_red_potions = red_potions - r_pots
-        new_blue_potions = blue_potions - b_pots
+
+        qry = "SELECT gold FROM global_inventory"
+        gold = connection.execute(sqlalchemy.text(qry)).fetchone()
+        print(f"USER:{cart_id}  Old Gold: {gold}")
         new_gold = gold + total_gold_paid
-        update_qry = f"""UPDATE global_inventory SET num_green_potions = {new_green_potions}, num_red_potions = {new_red_potions}, num_blue_potions = {new_blue_potions}, gold = {new_gold} """
+        update_qry = f"UPDATE global_inventory SET gold = {new_gold}"
         connection.execute(sqlalchemy.text(update_qry))
-        print(f"New Green Potions: {new_green_potions}, New Red Potions: {new_red_potions}, New Blue Potions: {new_blue_potions}, NPC Paid: {total_gold_paid}, New Gold: {new_gold}")
+        print(f"NPC Paid: {total_gold_paid}, New Gold: {new_gold}")
         print(f"NPC Payment String(What could it mean?): {cart_checkout.payment}")
         
-        # Clear the cart after checkout
         clear_cart_qry = f"""UPDATE zuto_carts SET g_pots = 0, r_pots = 0, b_pots = 0 WHERE cart_id = '{cart_id}' """
-        new_gold_qry = f"UPDATE global_inventory SET gold = {gold}"
 
         return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
