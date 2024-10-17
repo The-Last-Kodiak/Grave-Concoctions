@@ -18,10 +18,10 @@ def reset():
     """
     inventory = ["num_green_ml","num_green_potions","num_red_ml","num_red_potions","num_blue_ml","num_blue_potions"]
     with db.engine.begin() as connection:
-        gold_qry = "UPDATE global_inventory SET gold = 100"
+        gold_qry = "UPDATE gl_inv SET gold = 100"
         update1 = connection.execute(sqlalchemy.text(gold_qry))
         for item in inventory:
-            item_qry = f"UPDATE global_inventory SET {item} = 0"
+            item_qry = f"UPDATE gl_inv SET {item} = 0"
             update2 = connection.execute(sqlalchemy.text(item_qry))
     print("Sucessfully Reset Store")
     return "Sucessfully Reset Inventory"
