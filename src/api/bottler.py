@@ -54,11 +54,11 @@ def get_bottle_plan():
         "blue": {"ml_color": [0,0,100,0], "ml_qry": "SELECT num_blue_ml FROM gl_inv", "ml_upd": "num_blue_ml"},
         "red": {"ml_color": [100,0,0,0], "ml_qry": "SELECT num_red_ml FROM gl_inv", "ml_upd": "num_red_ml"}
         }
-
+    print("CALLED get_bottle_plan.")
     with db.engine.begin() as connection:
         for type in ml_types:
             ml_types[type]["ml"] = connection.execute(sqlalchemy.text(ml_types[type]["ml_qry"])).scalar()
-            print(f"CALLED get_bottle_plan. BEFORE {type} ML: {ml_types[type]['ml']}")
+            print(f"BEFORE {type} ML: {ml_types[type]['ml']}")
             ml_types[type]["potion_ord"], ml_types[type]["remain_ml"] = divmod(ml_types[type]["ml"], 100)
             remainder_ml_qry = f"UPDATE gl_inv SET {ml_types[type]['ml_upd']} = {ml_types[type]['remain_ml']}" #Pay attention to the way I quoted, otherwise it would not work
             connection.execute(sqlalchemy.text(remainder_ml_qry))
