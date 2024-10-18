@@ -110,7 +110,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             })
             barrel["quantity"] -= barrels_to_buy
 
-    print(f"BARREL PURCHASE PLAN CALLED. SHE GAVE: {wholesale_catalog}  PLAN RETURNED: {purchase_plan}")
+    print(f"BARREL PURCHASE PLAN CALLED. SHE GAVE: {wholesale_catalog}")
+    print(f"PLAN RETURNED: {purchase_plan}")
     return purchase_plan   
 
 def get_potion_type(potion_type):
