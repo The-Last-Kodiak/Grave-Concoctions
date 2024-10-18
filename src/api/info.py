@@ -18,8 +18,8 @@ class Timestamp(BaseModel):
 def post_time(timsta: Timestamp):
     """Share current time."""
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"""INSERT INTO calendar (f_day, f_hour, r_date) VALUES (:day, :hour, CURRENT_TIMESTAMP AT TIME ZONE 'PST') RETURNING r_date"""), {"day": timsta.day, "hour": timsta.hour})
-        #current_timestamp = result.fetchone()[0]
-    print(f"Day: {timsta.day}  Hour: {timsta.hour}")
-    #print(f"Current Timestamp: {current_timestamp}")
+        connection.execute(sqlalchemy.text(f"""INSERT INTO calendar (f_day, f_hour, r_date) 
+        VALUES (:day, :hour, CURRENT_TIMESTAMP AT TIME ZONE 'PDT') 
+        RETURNING r_date"""), {"day": timsta.day, "hour": timsta.hour})
+    print(f"Day: {timsta.day} Hour: {timsta.hour}")
     return (f"Day: {timsta.day}  Hour: {timsta.hour}")
