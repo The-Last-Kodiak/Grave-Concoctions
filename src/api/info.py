@@ -18,14 +18,10 @@ class Timestamp(BaseModel):
 @router.post("/current_time")
 def post_time(timsta: Timestamp):
     """Share current time."""
-    current_day = datetime.now().strftime("%A")
-    current_hour = datetime.now().hour
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"""
-        INSERT INTO calendar (f_day, f_hour, r_day, r_hour)
-        VALUES ('{timsta.day}', {timsta.hour}, '{current_day}', {current_hour})"""))
-        
-    print(f"Real Day: {current_day}  Real Hour: {current_hour}")
+        INSERT INTO calendar (f_day, f_hour)
+        VALUES ('{timsta.day}', {timsta.hour})"""))
     print(f"Day: {timsta.day}  Hour: {timsta.hour}")
     return (f"Day: {timsta.day}  Hour: {timsta.hour}")
 
