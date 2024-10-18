@@ -99,12 +99,16 @@ def create_cart(new_cart: Customer):
     green_price = 50  # example price for green potions
     red_price = 50    # example price for red potions
     blue_price = 50   # example price for blue potions
+    registry = f"""
+    INSERT INTO cart_owners (cart_id, name, class, lvl)
+    VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}); """
     insert_command = f"""
     INSERT INTO zuto_carts (cart_id, customer_name, character_class, level, g_pots, r_pots, b_pots, g_price, r_price, b_price)
     VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, 0, 0, 0, {green_price}, {red_price}, {blue_price}); """
 
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(insert_command))
+        connection.execute(sqlalchemy.text(registry))
     print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}")
     return {"cart_id": cart_id}
 
