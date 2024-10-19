@@ -18,38 +18,17 @@ class Item(BaseModel):
 @router.get("/catalog/", tags=["catalog"])
 def get_catalog():
     """Each unique item combination must have only a single price."""
-    green_qry = "SELECT num_green_potions FROM gl_inv"
-    blue_qry = "SELECT num_blue_potions FROM gl_inv"
-    red_qry = "SELECT num_red_potions FROM gl_inv"
+    query = "SELECT sku, price, stocked, typ FROM potions WHERE stocked > 0 AND selling = TRUE"
     with db.engine.begin() as connection:
-        green_potions = connection.execute(sqlalchemy.text(green_qry)).scalar()
-        blue_potions = connection.execute(sqlalchemy.text(blue_qry)).scalar()
-        red_potions = connection.execute(sqlalchemy.text(red_qry)).scalar()
-    
+        result = connection.execute(sqlalchemy.text(query)).fetchall()
     cata_diction = []
-    if green_potions > 1:
+    for row in result:
         cata_diction.append({
-            "sku": "GREEN_CONCOCTION",
-            "name": "green concoction",
-            "quantity": green_potions,
-            "price": 50,
-            "potion_type": [0, 100, 0, 0]
-        })
-    if blue_potions > 1:
-        cata_diction.append({
-            "sku": "BLUE_CONCOCTION",
-            "name": "blue concoction",
-            "quantity": blue_potions,
-            "price": 50,
-            "potion_type": [0, 0, 100, 0]
-        })
-    if red_potions > 1:
-        cata_diction.append({
-            "sku": "RED_CONCOCTION",
-            "name": "red concoction",
-            "quantity": red_potions,
-            "price": 50,
-            "potion_type": [100, 0, 0, 0]
+            "sku": row[0],
+            "name": row[0].replace("_", " ").title(),  # Converting SKU to a more readable name
+            "quantity": row[2],
+            "price": row[1],
+            "potion_type": row[3]
         })
     #remeber to update sku's in carts
     print(f"CALLED CATALOG: {cata_diction}")

@@ -14,17 +14,17 @@ router = APIRouter(
 
 @router.get("/audit")
 def get_inventory():
-    """"""
-    qry = "SELECT num_green_potions, num_red_potions, num_blue_potions, num_green_ml, num_red_ml, num_blue_ml, gold FROM gl_inv"
+    """Get the full inventory of all kinds of items."""
+    gl_qry = "SELECT num_green_ml, num_red_ml, num_blue_ml, num_dark_ml, gold FROM gl_inv"
+    potions_qry = "SELECT sku, price, stocked FROM potions WHERE stocked > 0"
     with db.engine.begin() as connection:
-        green_potions, red_potions, blue_potions, green_ml, red_ml, blue_ml, gold = connection.execute(sqlalchemy.text(qry)).fetchone()
-    total_potions = green_potions + red_potions + blue_potions
-    total_ml = green_ml + red_ml + blue_ml
-    print(f"CALLED GET INVENTORY. Green Potions: {green_potions}, Red Potions: {red_potions}, Blue Potions: {blue_potions}")
-    print(f"Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}")
+        green_ml, red_ml, blue_ml, dark_ml, gold = connection.execute(sqlalchemy.text(gl_qry)).fetchone()
+        potions = connection.execute(sqlalchemy.text(potions_qry)).fetchall()
+    total_potions = sum([potion.stocked for potion in potions])
+    total_ml = green_ml + red_ml + blue_ml + dark_ml
+    print(f"CALLED GET INVENTORY. Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}, Dark ML: {dark_ml}")
     print(f"Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
-    
-    return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold }
+    return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold}
 
 
 # Gets called once a day

@@ -101,11 +101,8 @@ def create_cart(new_cart: Customer):
     registry = f"""
     INSERT INTO cart_owners (cart_id, name, class, lvl)
     VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}); """
-    insert_command = f"""
-    INSERT INTO zuto_carts (cart_id, g_pots, r_pots, b_pots, g_price, r_price, b_price)
-    VALUES ('{cart_id}', 0, 0, 0, 50, 50, 50); """
+    #insert_command = f"""INSERT INTO zuto_carts (cart_id, g_pots, r_pots, b_pots, g_price, r_price, b_price) VALUES ('{cart_id}', 0, 0, 0, 50, 50, 50); """
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(insert_command))
         connection.execute(sqlalchemy.text(registry))
     print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}")
     return {"cart_id": cart_id}
@@ -116,61 +113,40 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
-    """Add cartitem to number of same items in the cart"""
-    # WARNING: CHANGED cart_id: int TO cart_id: str
-    mapping = {
-        "GREEN_CONCOCTION": ("num_green_potions", "g_pots"),
-        "BLUE_CONCOCTION": ("num_blue_potions", "b_pots"),
-        "RED_CONCOCTION": ("num_red_potions", "r_pots")
-    }
-    potion_order_tuple = mapping.get(item_sku)
-
-    if potion_order_tuple:
-        potion_column, order_column = potion_order_tuple
-        with db.engine.begin() as connection:
-            potion_count = connection.execute(sqlalchemy.text(f"SELECT {potion_column} FROM gl_inv")).scalar()
-            potion_count -= cart_item.quantity
-            connection.execute(sqlalchemy.text(f"UPDATE gl_inv SET {potion_column} = {potion_count}"))
-            connection.execute(sqlalchemy.text(f"UPDATE zuto_carts SET {order_column} = {cart_item.quantity} WHERE cart_id = '{cart_id}'"))
-            print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
-
-        return {"success": True}
-    else:
-        return {"error": "Invalid item SKU"}, 400
-
+    """Add cartitem to number of same items in the cart""" #WARNING: CHANGED cart_id: int TO cart_id: str
+    with db.engine.begin() as connection:
+        potion = connection.execute(sqlalchemy.text(f"SELECT price, stocked FROM potions WHERE sku = '{item_sku}'")).fetchone()
+        if potion:
+            price, stocked = potion
+            if stocked >= cart_item.quantity:
+                new_stock = stocked - cart_item.quantity
+                turba_price = cart_item.quantity * price
+                connection.execute(sqlalchemy.text(f"UPDATE potions SET stocked = {new_stock} WHERE sku = '{item_sku}'"))
+                connection.execute(sqlalchemy.text(f"""
+                        INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
+                        VALUES ('{cart_id}', '{item_sku}', {cart_item.quantity}, {turba_price});"""))
+                print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
+                return {"success": True}
+            else: return {"error": "Not enough stock available"}, 400
+        else: return {"error": "Invalid item SKU"}, 400
 
 
 class CartCheckout(BaseModel):
     payment: str
-#changing payment: str to payment: int?
 
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: str, cart_checkout: CartCheckout):
     #WARNING: CHANGED cart_id: int TO cart_id: str
     """Processes the checkout for a specific cart."""
     print(f"This customer has cart id: {cart_id}")
-    print(f"NPC Payment String(What could it mean?): {cart_checkout.payment}")
+    print(f"NPC Payment String: {cart_checkout.payment}")
     with db.engine.begin() as connection:
-        # Fetch the cart items and their quantities, including prices
-        qry = f"""SELECT g_pots, r_pots, b_pots, g_price, r_price, b_price FROM zuto_carts WHERE cart_id = '{cart_id}' """
-        result = connection.execute(sqlalchemy.text(qry)).fetchone()
-        if not result:
-            return {"error": "Cart not found"}, 404
-        
-        g_pots, r_pots, b_pots, g_price, r_price, b_price = result
-
-        total_potions_bought = g_pots + r_pots + b_pots
-        total_gold_paid = (g_pots * g_price + r_pots * r_price + b_pots * b_price)
-
-        qry = "SELECT gold FROM gl_inv"
-        gold = connection.execute(sqlalchemy.text(qry)).scalar()
-        print(f"USER:{cart_id}  Old Gold: {gold}")
+        qry = f"SELECT SUM(turba_price), SUM(in_cart) FROM zuto_carts WHERE cart_id = '{cart_id}'"
+        total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry)).fetchone()
+        if total_gold_paid is None: return {"error": "Cart not found or empty"}, 404
+        gold = connection.execute(sqlalchemy.text("SELECT gold FROM gl_inv")).scalar()
+        print(f"USER: {cart_id}  Old Gold: {gold}")
         new_gold = gold + total_gold_paid
-        #update_qry = f"UPDATE gl_inv SET gold = {new_gold}"
         connection.execute(sqlalchemy.text(f"UPDATE gl_inv SET gold = {new_gold}"))
         print(f"NPC Paid: {total_gold_paid}, New Gold: {new_gold}")
-        print(f"NPC Payment String(What could it mean?): {cart_checkout.payment}")
-        
-        clear_cart_qry = f"""UPDATE zuto_carts SET g_pots = 0, r_pots = 0, b_pots = 0 WHERE cart_id = '{cart_id}' """
-
-        return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}

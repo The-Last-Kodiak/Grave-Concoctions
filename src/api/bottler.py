@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from enum import Enum
 from pydantic import BaseModel
 from src.api import auth
+import itertools
 
 
 router = APIRouter(
@@ -18,66 +19,63 @@ class PotionInventory(BaseModel):
 
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
-    """
-    Processes the delivery of potions and stores them in a dictionary.
-    Args:
-        potions_delivered (List[PotionInventory]): A list of delivered PotionInventory objects.
-        order_id (int): The order ID for the delivery.
-       """
-    delivery_dictionary = {tuple(potinv.potion_type): potinv for potinv in potions_delivered}
-    new_g_potions = new_r_potions = new_b_potions = 0
-    for potinv in potions_delivered:
-        if potinv.potion_type[1] == 100:
-            new_g_potions += potinv.quantity
-        if potinv.potion_type[0] == 100:
-            new_r_potions += potinv.quantity
-        if potinv.potion_type[2] == 100:
-            new_b_potions += potinv.quantity
-    g_qry = f"UPDATE gl_inv SET num_green_potions = {new_g_potions}"
-    r_qry = f"UPDATE gl_inv SET num_red_potions = {new_r_potions}"
-    b_qry = f"UPDATE gl_inv SET num_blue_potions = {new_b_potions}"
+    """ Args: potions_delivered (List[PotionInventory]): A list of delivered PotionInventory objects.
+              order_id (int): The order ID for the delivery."""
     with db.engine.begin() as connection:
-        update1 = connection.execute(sqlalchemy.text(g_qry)) #updates amount of bottles now that they're delivered
-        update2 = connection.execute(sqlalchemy.text(r_qry))
-        update3 = connection.execute(sqlalchemy.text(b_qry))
-    print(f"CALLED BOTTLES DELIVERY. Potions delievered: {potions_delivered} order_id: {order_id}")
-    print(f"Green Potions:{new_g_potions} Red Potions:{new_r_potions} Blue Potions:{new_b_potions}")
-    
-    return f"Green Potions:{new_g_potions} Red Potions:{new_r_potions} Blue Potions:{new_b_potions}"
+        potion_totals = {}
+        for potinv in potions_delivered:
+            potion_type_key = tuple(potinv.potion_type)
+            potion_totals[potion_type_key] = potinv.quantity
+
+        for potion_type, total_quantity in potion_totals.items():
+            typ_str = ', '.join(map(str, potion_type))
+            connection.execute(sqlalchemy.text(f"""
+                UPDATE potions
+                SET stocked = stocked + {total_quantity}
+                WHERE typ = ARRAY[{typ_str}]::integer[];"""))
+    print(f"CALLED BOTTLES DELIVERY. order_id: {order_id}")
+    for potion_type, total_quantity in potion_totals.items():
+        print(f"Type: {potion_type}, Quantity: {total_quantity}")
+    return {"success": True}
 
 
 @router.post("/plan")
 def get_bottle_plan():
-    """Go from barrel(ml) to bottle."""
-    ml_types = {
-        "green": {"ml_color": [0,100,0,0], "ml_qry": "SELECT num_green_ml FROM gl_inv", "ml_upd": "num_green_ml"},
-        "blue": {"ml_color": [0,0,100,0], "ml_qry": "SELECT num_blue_ml FROM gl_inv", "ml_upd": "num_blue_ml"},
-        "red": {"ml_color": [100,0,0,0], "ml_qry": "SELECT num_red_ml FROM gl_inv", "ml_upd": "num_red_ml"}
-        }
-    print("CALLED get_bottle_plan.")
+    """Decide which potions to order based on available ml in barrels."""
     with db.engine.begin() as connection:
-        for type in ml_types:
-            ml_types[type]["ml"] = connection.execute(sqlalchemy.text(ml_types[type]["ml_qry"])).scalar()
-            print(f"BEFORE {type} ML: {ml_types[type]['ml']}")
-            ml_types[type]["potion_ord"], ml_types[type]["remain_ml"] = divmod(ml_types[type]["ml"], 100)
-            remainder_ml_qry = f"UPDATE gl_inv SET {ml_types[type]['ml_upd']} = {ml_types[type]['remain_ml']}" #Pay attention to the way I quoted, otherwise it would not work
-            connection.execute(sqlalchemy.text(remainder_ml_qry))
-            print(f"AFTER {type} ML: {ml_types[type]['remain_ml']}")
-    
-    # Each bottle has a quantity of what proportion of red, blue, and
-    # green potion to add.
-    # Expressed in integers from 1 to 100 that must sum up to 100.
-    # Initial logic: bottle all barrels into potions.
-    purchase_plan = [
-        {
-            "potion_type": ml_types[potion]["ml_color"],
-            "quantity": ml_types[potion]["potion_ord"]
-        }
-        for potion in ml_types if ml_types[potion]["potion_ord"] > 0
-    ]
+        ml_query = "SELECT num_green_ml, num_red_ml, num_blue_ml, num_dark_ml FROM gl_inv"
+        green_ml, red_ml, blue_ml, dark_ml = connection.execute(sqlalchemy.text(ml_query)).fetchone()
+        potions_query = "SELECT typ, stocked FROM potions WHERE selling = TRUE "
+        potions = connection.execute(sqlalchemy.text(potions_query)).fetchall()
+    available_ml = {"green": green_ml, "red": red_ml, "blue": blue_ml, "dark": dark_ml}
+    potential_potions = []
+    for potion in potions:
+        typ_array, stocked = potion
+        potential_potions.append((typ_array, stocked))
+    def potion_efficiency(potion):
+        typ_array, _ = potion
+        return sum(typ_array) / max(1, min(available_ml[color] // amount for color, amount in zip(["green", "red", "blue", "dark"], typ_array) if amount > 0))
+    potential_potions.sort(key=potion_efficiency)
+    purchase_plan = []
+    total_potions = 0
+    for typ_array, stocked in potential_potions:
+        actual_order_quantity = min(
+            available_ml[color] // amount for color, amount in zip(["green", "red", "blue", "dark"], typ_array) if amount > 0)
+        if actual_order_quantity > 0:
+            for color, amount in zip(["green", "red", "blue", "dark"], typ_array):
+                if amount > 0:
+                    available_ml[color] -= actual_order_quantity * amount
+            purchase_plan.append({"potion_type": typ_array, "quantity": actual_order_quantity})
+            total_potions += actual_order_quantity
+    with db.engine.begin() as connection:
+        update_ml_query = f"""UPDATE gl_inv 
+            SET num_green_ml = {available_ml["green"]}, 
+                num_red_ml = {available_ml["red"]}, 
+                num_blue_ml = {available_ml["blue"]}, 
+                num_dark_ml = {available_ml["dark"]}"""
+        connection.execute(sqlalchemy.text(update_ml_query))
     print(f"SENDING PURCHASE PLAN: {purchase_plan}")
     return purchase_plan
-    #return [{"potion_type": [0, 100, 0, 0],"quantity": g_potion_order,},{"potion_type": [100, 0, 0, 0],"quantity": r_potion_order,},{"potion_type": [0, 0, 100, 0], "quantity": b_potion_order}]
-
+    
 if __name__ == "__main__":
     print(get_bottle_plan())
