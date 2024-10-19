@@ -44,11 +44,46 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """
-    Generates a wholesale purchase plan based on the current inventory of potions.
+    Generates a wholesale purchase plan that prioritizes buying the smallest barrels with the highest cost per ML.
     Args:
         wholesale_catalog (List[Barrel]): A list of Barrel objects representing the wholesale catalog.
     """
     gold_qry = "SELECT gold FROM gl_inv"
+    with db.engine.begin() as connection:
+        gold = connection.execute(sqlalchemy.text(gold_qry)).scalar()
+
+    # Calculate cost per ML for each barrel and add it to a dictionary
+    barrel_data = []
+    for barrel in wholesale_catalog:
+        cost_per_ml = barrel.price / barrel.ml_per_barrel
+        barrel_data.append({
+            "sku": barrel.sku,
+            "ml_per_barrel": barrel.ml_per_barrel,
+            "potion_type": barrel.potion_type,
+            "price": barrel.price,
+            "quantity": barrel.quantity,
+            "cost_per_ml": cost_per_ml
+        })
+
+    # Sort barrels by cost per ML (highest first), then by size (smallest first)
+    barrel_data.sort(key=lambda x: (-x["cost_per_ml"], x["ml_per_barrel"]))
+
+    purchase_plan = []
+    for barrel in barrel_data:
+        while barrel["price"] <= gold and barrel["quantity"] > 0:
+            barrels_to_buy = min(barrel["quantity"], gold // barrel["price"])
+            total_cost = barrels_to_buy * barrel["price"]
+            gold -= total_cost
+            purchase_plan.append({
+                "sku": barrel["sku"],
+                "quantity": barrels_to_buy
+            })
+            barrel["quantity"] -= barrels_to_buy
+
+    print(f"BARREL PURCHASE PLAN CALLED. SHE GAVE: {wholesale_catalog}")
+    print(f"PLAN RETURNED: {purchase_plan}")
+    return purchase_plan
+
     ml_qrys = {
         "green": "SELECT num_green_ml FROM gl_inv",
         "blue": "SELECT num_blue_ml FROM gl_inv",
@@ -77,23 +112,37 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             "price": barrel.price,
             "quantity": barrel.quantity,
             "cost_per_ml": cost_per_ml,
-            "color": color
-        })
-
-    # Sort barrels by ml type with the least inventory and then by cost per ML
-    barrel_data.sort(key=lambda x: (ml_inventory[x["color"]], x["cost_per_ml"]))
-
+            "color": color})
+    # Sort barrels first by ml type with the least inventory, then by variety (number of different potion types) and then by cost per ML
+    barrel_data.sort(key=lambda x: (ml_inventory[x["color"]], x["cost_per_ml"], -x["ml_per_barrel"], x["quantity"]))
     purchase_plan = []
-    for barrel in barrel_data:
-        if barrel["price"] <= gold and barrel["quantity"] > 0:
-            barrels_to_buy = min(barrel["quantity"], gold // barrel["price"])
-            total_cost = barrels_to_buy * barrel["price"]
-            gold -= total_cost
-            purchase_plan.append({
-                "sku": barrel["sku"],
-                "quantity": barrels_to_buy
-            })
-            barrel["quantity"] -= barrels_to_buy
+    colors_purchased = set()
+    min_purchase_per_color = 1
+    while gold > 0:
+        for barrel in barrel_data:
+            if barrel["price"] <= gold and barrel["quantity"] > 0:
+                # Ensure we are buying from different colors
+                if len(colors_purchased) < 4 and barrel["color"] in colors_purchased:
+                   continue
+                barrels_to_buy = min(barrel["quantity"], gold // barrel["price"])
+                total_cost = barrels_to_buy * barrel["price"]
+                if colors_purchased.add(barrel["color"]) or barrels_to_buy >= min_purchase_per_color:
+                    gold -= total_cost
+                    purchase_plan.append({
+                        "sku": barrel["sku"],
+                        "quantity": barrels_to_buy
+                    })
+                    barrel["quantity"] -= barrels_to_buy
+                    ml_inventory[barrel["color"]] += barrels_to_buy * barrel["ml_per_barrel"]
+                    colors_purchased.add(barrel["color"])
+
+                    # Resort barrels after each purchase to maintain balance in inventory
+                    barrel_data.sort(key=lambda x: (ml_inventory[x["color"]], x["cost_per_ml"], -x["ml_per_barrel"], x["quantity"]))
+                        
+                    # Exit if gold is exhausted
+                if gold <= 0:
+                    break
+
 
     print(f"BARREL PURCHASE PLAN CALLED. SHE GAVE: {wholesale_catalog}")
     print(f"PLAN RETURNED: {purchase_plan}")
