@@ -13,6 +13,8 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
+from pydantic import BaseModel
+
 class PotionInventory(BaseModel):
     potion_type: list[int]
     quantity: int
@@ -25,28 +27,29 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     """
     with db.engine.begin() as connection:
         potion_totals = {'red': 0, 'green': 0, 'blue': 0, 'dark': 0}
-        
+
         for potinv in potions_delivered:
             potion_type = potinv.potion_type
             quantity = potinv.quantity
-            
             potion_totals['red'] += potion_type[0] * quantity
             potion_totals['green'] += potion_type[1] * quantity
             potion_totals['blue'] += potion_type[2] * quantity
             potion_totals['dark'] += potion_type[3] * quantity
-        update_ml_query = f"""
-            UPDATE gl_inv
+            update_stocked_query = f"""UPDATE potions
+                SET stocked = stocked + {quantity}
+                WHERE typ = ARRAY{potion_type}"""
+            connection.execute(sqlalchemy.text(update_stocked_query))
+        
+        update_ml_query = f"""UPDATE gl_inv
             SET num_green_ml = num_green_ml - {potion_totals['green']},
                 num_red_ml = num_red_ml - {potion_totals['red']},
                 num_blue_ml = num_blue_ml - {potion_totals['blue']},
-                num_dark_ml = num_dark_ml - {potion_totals['dark']}
-        """
+                num_dark_ml = num_dark_ml - {potion_totals['dark']}"""
         connection.execute(sqlalchemy.text(update_ml_query))
-    
-    print(f"CALLED BOTTLES DELIVERY. order_id: {order_id}")
+
+        print(f"CALLED BOTTLES DELIVERY. order_id: {order_id}")
     for color, total in potion_totals.items():
         print(f"Total {color} ml received: {total}")
-    
     return {"success": True}
 
 
