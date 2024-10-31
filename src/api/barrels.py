@@ -51,8 +51,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     gold_qry = "SELECT gold FROM gl_inv"
     with db.engine.begin() as connection:
         gold = connection.execute(sqlalchemy.text(gold_qry)).scalar()
-
-    # Calculate cost per ML for each barrel and add it to a dictionary
     barrel_data = []
     for barrel in wholesale_catalog:
         cost_per_ml = barrel.price / barrel.ml_per_barrel
@@ -142,7 +140,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     # Exit if gold is exhausted
                 if gold <= 0:
                     break
-
 
     print(f"BARREL PURCHASE PLAN CALLED. SHE GAVE: {wholesale_catalog}")
     print(f"PLAN RETURNED: {purchase_plan}")

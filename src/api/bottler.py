@@ -27,7 +27,6 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     """
     with db.engine.begin() as connection:
         potion_totals = {'red': 0, 'green': 0, 'blue': 0, 'dark': 0}
-
         for potinv in potions_delivered:
             potion_type = potinv.potion_type
             quantity = potinv.quantity
@@ -60,32 +59,44 @@ def get_bottle_plan():
         ml_query = "SELECT num_green_ml, num_red_ml, num_blue_ml, num_dark_ml FROM gl_inv"
         green_ml, red_ml, blue_ml, dark_ml = connection.execute(sqlalchemy.text(ml_query)).fetchone()
         potions = connection.execute(sqlalchemy.text("SELECT typ, norm FROM potions WHERE selling = TRUE ORDER BY lead DESC")).fetchall()
+    
     available_ml = {"green": green_ml, "red": red_ml, "blue": blue_ml, "dark": dark_ml}
     potential_potions = []
+
+    # Store potions that can be made at least once
     for potion in potions:
         typ_array, norm = potion
         can_make = all(available_ml[color] >= amount for color, amount in zip(["green", "red", "blue", "dark"], typ_array) if amount > 0)
         if can_make:
             in_cart = 0
             potential_potions.append((typ_array, norm, in_cart))
+
     purchase_plan = []
-    for i, (typ_array, norm, in_cart) in enumerate(potential_potions):
-        while norm > 0:
-            can_buy = all(available_ml[color] >= amount for color, amount in zip(["green", "red", "blue", "dark"], typ_array) if amount > 0)
-            if can_buy:
-                for color, amount in zip(["green", "red", "blue", "dark"], typ_array):
-                    if amount > 0:
-                        available_ml[color] -= amount
-                potential_potions[i] = (typ_array, norm - 1, in_cart + 1)
-                norm -= 1
-            else:
-                break
+    updated = True
+
+    # Continue iterating through potential potions until no updates can be made
+    while updated:
+        updated = False
+        for i in range(len(potential_potions)):
+            typ_array, norm, in_cart = potential_potions[i]
+            if norm > 0:
+                can_buy = all(available_ml[color] >= amount for color, amount in zip(["green", "red", "blue", "dark"], typ_array) if amount > 0)
+                if can_buy:
+                    for color, amount in zip(["green", "red", "blue", "dark"], typ_array):
+                        if amount > 0:
+                            available_ml[color] -= amount
+                    potential_potions[i] = (typ_array, norm - 1, in_cart + 1)
+                    updated = True
+
+    # Build the final purchase plan
     for typ_array, norm, in_cart in potential_potions:
         if in_cart > 0:
             purchase_plan.append({"potion_type": typ_array, "quantity": in_cart})
-    
+
     print(f"SENDING PURCHASE PLAN: {purchase_plan}")
     return purchase_plan
+
+
 
 if __name__ == "__main__":
     print(get_bottle_plan())
