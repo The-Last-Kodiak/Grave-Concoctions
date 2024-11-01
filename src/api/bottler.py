@@ -60,13 +60,13 @@ def get_bottle_plan():
         green_ml, red_ml, blue_ml, dark_ml = connection.execute(sqlalchemy.text(ml_query)).fetchone()
         potions = connection.execute(sqlalchemy.text("SELECT typ, norm FROM potions WHERE selling = TRUE ORDER BY lead DESC")).fetchall()
     
-    available_ml = {"green": green_ml, "red": red_ml, "blue": blue_ml, "dark": dark_ml}
+    available_ml = {"red": red_ml, "green": green_ml, "blue": blue_ml, "dark": dark_ml}
     potential_potions = []
 
     # Store potions that can be made at least once
     for potion in potions:
         typ_array, norm = potion
-        can_make = all(available_ml[color] >= amount for color, amount in zip(["green", "red", "blue", "dark"], typ_array) if amount > 0)
+        can_make = all(available_ml[color] >= amount for color, amount in zip([ "red", "green", "blue", "dark"], typ_array) if amount > 0)
         if can_make:
             in_cart = 0
             potential_potions.append((typ_array, norm, in_cart))
@@ -80,9 +80,9 @@ def get_bottle_plan():
         for i in range(len(potential_potions)):
             typ_array, norm, in_cart = potential_potions[i]
             if norm > 0:
-                can_buy = all(available_ml[color] >= amount for color, amount in zip(["green", "red", "blue", "dark"], typ_array) if amount > 0)
+                can_buy = all(available_ml[color] >= amount for color, amount in zip([ "red", "green", "blue", "dark"], typ_array) if amount > 0)
                 if can_buy:
-                    for color, amount in zip(["green", "red", "blue", "dark"], typ_array):
+                    for color, amount in zip(["red", "green", "blue", "dark"], typ_array):
                         if amount > 0:
                             available_ml[color] -= amount
                     potential_potions[i] = (typ_array, norm - 1, in_cart + 1)
