@@ -86,7 +86,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
         with db.engine.begin() as connection:
             dy = f"SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1"
             day = connection.execute(sqlalchemy.text(dy)).fetchone()[0]
-            up = f"INSERT INTO npc_visits (visit_id, customer_name, character_class, level, v_day) VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level}, '{day}');"
+            up = f"INSERT INTO npc_visits (visit_id, customer_name, character_class, level, v_day, r_date) VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level}, '{day}', CURRENT_TIMESTAMP AT TIME ZONE 'PDT');"
             puh = connection.execute(sqlalchemy.text(up))
     #up1 = "CREATE TABLE npc_visits (id bigint generated always as identity,visit_id int,customer_name text,character_class text,level int);"
     custo_diction = {custo.customer_name: custo for custo in customers}

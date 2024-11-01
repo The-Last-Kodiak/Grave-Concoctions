@@ -48,7 +48,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 
         print(f"CALLED BOTTLES DELIVERY. order_id: {order_id}")
     for color, total in potion_totals.items():
-        print(f"Total {color} ml received: {total}")
+        print(f"Total {color} ml used: {total}")
     return {"success": True}
 
 
@@ -63,7 +63,6 @@ def get_bottle_plan():
     available_ml = {"red": red_ml, "green": green_ml, "blue": blue_ml, "dark": dark_ml}
     potential_potions = []
 
-    # Store potions that can be made at least once
     for potion in potions:
         typ_array, norm = potion
         can_make = all(available_ml[color] >= amount for color, amount in zip([ "red", "green", "blue", "dark"], typ_array) if amount > 0)
@@ -88,7 +87,6 @@ def get_bottle_plan():
                     potential_potions[i] = (typ_array, norm - 1, in_cart + 1)
                     updated = True
 
-    # Build the final purchase plan
     for typ_array, norm, in_cart in potential_potions:
         if in_cart > 0:
             purchase_plan.append({"potion_type": typ_array, "quantity": in_cart})
