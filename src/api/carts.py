@@ -98,7 +98,6 @@ def post_visits(visit_id: int, customers: list[Customer]):
 def create_cart(new_cart: Customer):
     """Creates a new cart for a specific customer."""
     cart_id = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(7))
-    #insert_command = f"""INSERT INTO zuto_carts (cart_id, g_pots, r_pots, b_pots, g_price, r_price, b_price) VALUES ('{cart_id}', 0, 0, 0, 50, 50, 50); """
     with db.engine.begin() as connection:
         dy = f"SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1"
         day = connection.execute(sqlalchemy.text(dy)).fetchone()[0]
