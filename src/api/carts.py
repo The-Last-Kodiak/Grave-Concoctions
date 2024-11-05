@@ -88,6 +88,12 @@ def post_visits(visit_id: int, customers: list[Customer]):
         with db.engine.begin() as connection:
             day = connection.execute(sqlalchemy.text("SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1")).fetchone()[0]
             connection.execute(sqlalchemy.text(f"INSERT INTO npc_visits (visit_id, customer_name, character_class, level, v_day) VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level}, '{day}');"))
+            day_column = day.split('day')[0]
+            character_class = custard.character_class
+            class_row = connection.execute(sqlalchemy.text("SELECT * FROM class_visit_days WHERE class = :class"), {"class": character_class}).fetchone()
+            if not class_row:
+                connection.execute(sqlalchemy.text("INSERT INTO class_visit_days (class) VALUES (:class)"), {"class": character_class})
+            connection.execute(sqlalchemy.text(f'UPDATE class_visit_days SET "{day_column}" = COALESCE("{day_column}", 0) + 1 WHERE class = :class'), {"class": character_class})
     print(f"CUSTOMERS VISIT: {customers}")
     return {"success": True}
 
@@ -101,6 +107,12 @@ def create_cart(new_cart: Customer):
         registry = f"""INSERT INTO cart_owners (cart_id, name, class, lvl, day)
         VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, '{day}'); """
         connection.execute(sqlalchemy.text(registry))
+        day_column = day.split('day')[0]
+        character_class = new_cart.character_class
+        class_row = connection.execute(sqlalchemy.text("SELECT * FROM class_buy_days WHERE class = :class"), {"class": character_class}).fetchone()
+        if not class_row:
+            connection.execute(sqlalchemy.text("INSERT INTO class_buy_days (class) VALUES (:class)"), {"class": character_class})
+        connection.execute(sqlalchemy.text(f'UPDATE class_buy_days SET "{day_column}" = COALESCE("{day_column}", 0) + 1 WHERE class = :class'), {"class": character_class})
     print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}")
     print(f"Inserted values: cart_id={cart_id}, customer_name={new_cart.customer_name}, class={new_cart.character_class}, level={new_cart.level}, day={day}")
     return {"cart_id": cart_id}
@@ -123,20 +135,15 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
                     INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
                     VALUES (:cart_id, :item_sku, :quantity, :turba_price)
                 """), {"cart_id": cart_id, "item_sku": item_sku, "quantity": cart_item.quantity, "turba_price": turba_price})
-                
                 class_text = connection.execute(sqlalchemy.text("SELECT class FROM cart_owners WHERE cart_id = :cart_id"), {"cart_id": cart_id}).scalar()
                 if class_text is None:
                     return {"error": "Class not found for the given cart_id"}, 400
-
                 class_text = class_text.strip('"')
-                
                 class_row = connection.execute(sqlalchemy.text("SELECT * FROM class_gems WHERE class = :class_text"), {"class_text": class_text}).fetchone()
                 if not class_row:
                     connection.execute(sqlalchemy.text("INSERT INTO class_gems (class) VALUES (:class_text)"), {"class_text": class_text})
-                
                 potion_column = item_sku.split('_')[0].upper()
                 connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = "{potion_column}" + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})
-                
                 update_potion_inventory(item_sku, -cart_item.quantity)
                 print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
                 return {"success": True}
