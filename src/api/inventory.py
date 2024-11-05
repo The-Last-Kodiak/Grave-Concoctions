@@ -20,7 +20,7 @@ def update_gold(change):
 
 def get_current_gold():
     with db.engine.begin() as connection:
-        return connection.execute(sqlalchemy.text(f"SELECT SUM(change) FROM ledgers WHERE inventory_type = 'gold';")).scalar()
+        return connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(change), 0) FROM ledgers WHERE inventory_type = 'gold';")).scalar()
 
 def update_potion_inventory(sku, change):
     with db.engine.begin() as connection:
@@ -30,7 +30,7 @@ def update_potion_inventory(sku, change):
 
 def get_current_potion_inventory(sku):
     with db.engine.begin() as connection:
-        return connection.execute(sqlalchemy.text(f"SELECT SUM(change) FROM ledgers WHERE inventory_type = '{sku}';")).scalar()
+        return connection.execute(sqlalchemy.text(f"SELECT COALESCE(SUM(change), 0) FROM ledgers WHERE inventory_type = '{sku}';")).scalar()
 
 def update_ml(type, change):
     with db.engine.begin() as connection:
@@ -41,7 +41,7 @@ def update_ml(type, change):
 
 def get_current_ml(type):
     with db.engine.begin() as connection:
-        return connection.execute(sqlalchemy.text(f"SELECT SUM(change) FROM ledgers WHERE inventory_type = '{type}_ml';")).scalar()
+        return connection.execute(sqlalchemy.text(f"SELECT COALESCE(SUM(change), 0) FROM ledgers WHERE inventory_type = '{type}_ml';")).scalar()
 
 
 
