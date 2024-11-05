@@ -5,7 +5,7 @@ from enum import Enum
 from pydantic import BaseModel
 from src.api import auth
 import itertools
-from api.inventory import update_gold, get_current_gold, update_potion_inventory, get_current_potion_inventory, update_ml, get_current_ml
+from src.api.inventory import update_gold, get_current_gold, update_potion_inventory, get_current_potion_inventory, update_ml, get_current_ml
 
 
 router = APIRouter(

@@ -7,7 +7,7 @@ from enum import Enum
 import uuid
 import secrets
 import string
-from api.inventory import update_gold, get_current_gold, update_potion_inventory, get_current_potion_inventory, update_ml, get_current_ml
+from src.api.inventory import update_gold, get_current_gold, update_potion_inventory, get_current_potion_inventory, update_ml, get_current_ml
 
 
 router = APIRouter(
