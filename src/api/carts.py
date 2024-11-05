@@ -113,7 +113,7 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
-    """Add cartitem to number of same items in the cart""" #WARNING: CHANGED cart_id: int TO cart_id: str
+    """Add cart item to number of same items in the cart"""
     with db.engine.begin() as connection:
         potion = connection.execute(sqlalchemy.text(f"SELECT price, stocked FROM potions WHERE sku = '{item_sku}'")).fetchone()
         if potion:
@@ -125,10 +125,19 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
                 connection.execute(sqlalchemy.text(f"""
                         INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
                         VALUES ('{cart_id}', '{item_sku}', {cart_item.quantity}, {turba_price});"""))
+                class_text = connection.execute(sqlalchemy.text(f"SELECT class FROM cart_owners WHERE cart_id = '{cart_id}'")).scalar()
+                class_row = connection.execute(sqlalchemy.text(f"SELECT * FROM class_gems WHERE class = '{class_text}'")).fetchone()
+                if not class_row:
+                    connection.execute(sqlalchemy.text(f"INSERT INTO class_gems (class) VALUES ('{class_text}')"))
+                potion_column = item_sku.split('_')[0].upper()  # Assuming SKU follows the pattern COLOR_CONCOCTION
+                connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = "{potion_column}" + {cart_item.quantity} WHERE class = \'{class_text}\''))
                 print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
                 return {"success": True}
-            else: return {"error": "Not enough stock available"}, 400
-        else: return {"error": "Invalid item SKU"}, 400
+            else:
+                return {"error": "Not enough stock available"}, 400
+        else:
+            return {"error": "Invalid item SKU"}, 400
+
 
 
 class CartCheckout(BaseModel):
