@@ -12,6 +12,24 @@ router = APIRouter(
 )
 
 
+def update_gold(change):
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text(f"INSERT INTO ledgers (inventory_type, change) VALUES ('gold', {change});"))
+
+def get_current_gold():
+    with db.engine.begin() as connection:
+        return connection.execute(sqlalchemy.text(f"SELECT SUM(change) FROM ledgers WHERE inventory_type = 'gold';")).scalar()
+
+def update_potion_inventory(sku, change):
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text(f"INSERT INTO ledgers (inventory_type, change) VALUES ('{sku}', {change});"))
+
+def get_current_potion_inventory(sku):
+    with db.engine.begin() as connection:
+        return connection.execute(sqlalchemy.text(f"SELECT SUM(change) FROM ledgers WHERE inventory_type = '{sku}';")).scalar()
+
+
+
 @router.get("/audit")
 def get_inventory():
     """Get the full inventory of all kinds of items."""
