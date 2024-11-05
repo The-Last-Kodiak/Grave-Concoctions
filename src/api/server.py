@@ -10,7 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 description = """
 Central Coast Cauldrons is the premier ecommerce site for all your alchemical desires.
 """
-
+#on render
 app = FastAPI(
     title="Central Coast Cauldrons",
     description=description,

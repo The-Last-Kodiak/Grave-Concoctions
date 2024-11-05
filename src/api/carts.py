@@ -7,6 +7,8 @@ from enum import Enum
 import uuid
 import secrets
 import string
+from api.inventory import update_gold, get_current_gold, update_potion_inventory, get_current_potion_inventory, update_ml, get_current_ml
+
 
 router = APIRouter(
     prefix="/carts",
@@ -84,12 +86,8 @@ def post_visits(visit_id: int, customers: list[Customer]):
     """Which customers visited the shop today?"""
     for custard in customers:
         with db.engine.begin() as connection:
-            dy = f"SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1"
-            day = connection.execute(sqlalchemy.text(dy)).fetchone()[0]
-            up = f"INSERT INTO npc_visits (visit_id, customer_name, character_class, level, v_day, r_date) VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level}, '{day}', CURRENT_TIMESTAMP AT TIME ZONE 'PST');"
-            puh = connection.execute(sqlalchemy.text(up))
-    #up1 = "CREATE TABLE npc_visits (id bigint generated always as identity,visit_id int,customer_name text,character_class text,level int);"
-    custo_diction = {custo.customer_name: custo for custo in customers}
+            day = connection.execute(sqlalchemy.text("SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1")).fetchone()[0]
+            connection.execute(sqlalchemy.text(f"INSERT INTO npc_visits (visit_id, customer_name, character_class, level, v_day) VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level}, '{day}');"))
     print(f"CUSTOMERS VISIT: {customers}")
     return {"success": True}
 
@@ -99,13 +97,13 @@ def create_cart(new_cart: Customer):
     """Creates a new cart for a specific customer."""
     cart_id = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(7))
     with db.engine.begin() as connection:
-        dy = f"SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1"
-        day = connection.execute(sqlalchemy.text(dy)).fetchone()[0]
+        day = connection.execute(sqlalchemy.text("SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1")).fetchone()[0]
         registry = f"""INSERT INTO cart_owners (cart_id, name, class, lvl, day)
         VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, '{day}'); """
         connection.execute(sqlalchemy.text(registry))
     print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}")
     return {"cart_id": cart_id}
+
 
 
 class CartItem(BaseModel):
@@ -119,9 +117,7 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
         if potion:
             price, stocked = potion
             if stocked >= cart_item.quantity:
-                new_stock = stocked - cart_item.quantity
                 turba_price = cart_item.quantity * price
-                connection.execute(sqlalchemy.text(f"UPDATE potions SET stocked = {new_stock} WHERE sku = '{item_sku}'"))
                 connection.execute(sqlalchemy.text(f"""
                         INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
                         VALUES ('{cart_id}', '{item_sku}', {cart_item.quantity}, {turba_price});"""))
@@ -129,15 +125,15 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
                 class_row = connection.execute(sqlalchemy.text(f"SELECT * FROM class_gems WHERE class = '{class_text}'")).fetchone()
                 if not class_row:
                     connection.execute(sqlalchemy.text(f"INSERT INTO class_gems (class) VALUES ('{class_text}')"))
-                potion_column = item_sku.split('_')[0].upper()  # Assuming SKU follows the pattern COLOR_CONCOCTION
+                potion_column = item_sku.split('_')[0].upper()
                 connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = "{potion_column}" + {cart_item.quantity} WHERE class = \'{class_text}\''))
+                update_potion_inventory(item_sku, -cart_item.quantity)
                 print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
                 return {"success": True}
             else:
                 return {"error": "Not enough stock available"}, 400
         else:
             return {"error": "Invalid item SKU"}, 400
-
 
 
 class CartCheckout(BaseModel):
@@ -152,10 +148,10 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
     with db.engine.begin() as connection:
         qry = f"SELECT SUM(turba_price), SUM(in_cart) FROM zuto_carts WHERE cart_id = '{cart_id}'"
         total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry)).fetchone()
-        if total_gold_paid is None: return {"error": "Cart not found or empty"}, 404
-        gold = connection.execute(sqlalchemy.text("SELECT gold FROM gl_inv")).scalar()
-        print(f"USER: {cart_id}  Old Gold: {gold}")
-        new_gold = gold + total_gold_paid
-        connection.execute(sqlalchemy.text(f"UPDATE gl_inv SET gold = {new_gold}"))
-        print(f"NPC Paid: {total_gold_paid}, New Gold: {new_gold}")
+        if total_gold_paid is None:
+            return {"error": "Cart not found or empty"}, 404
+        update_gold(total_gold_paid)
+        gold = get_current_gold()
+        print(f"USER: {cart_id}  New Gold: {gold}")
+        print(f"NPC Paid: {total_gold_paid}, New Gold: {gold}")
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}

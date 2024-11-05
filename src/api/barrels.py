@@ -3,6 +3,7 @@ from src import database as db
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
+from api.inventory import update_gold, get_current_gold, update_potion_inventory, get_current_potion_inventory, update_ml, get_current_ml
 
 router = APIRouter(
     prefix="/barrels",
@@ -19,6 +20,32 @@ class Barrel(BaseModel):
 
 @router.post("/deliver/{order_id}")
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
+    for barrel in barrels_delivered:
+        ml_to_add = barrel.quantity * barrel.ml_per_barrel
+        total_cost = barrel.price * barrel.quantity
+        
+        if barrel.potion_type[1] == 1:
+            update_ml("GREEN", ml_to_add)
+        if barrel.potion_type[0] == 1:
+            update_ml("RED", ml_to_add)
+        if barrel.potion_type[2] == 1:
+            update_ml("BLUE", ml_to_add)
+        if barrel.potion_type[3] == 1:
+            update_ml("DARK", ml_to_add)
+        
+        update_gold(-total_cost)
+
+    current_gold = get_current_gold()
+    current_gml = get_current_ml("GREEN")
+    current_rml = get_current_ml("RED")
+    current_bml = get_current_ml("BLUE")
+    current_dml = get_current_ml("DARK")
+
+    print(f"POST DELIVERED BARRELS. Barrels Delivered: {barrels_delivered} order_id: {order_id}")
+    print(f"Current Gold: {current_gold}, Green ML: {current_gml}, Red ML: {current_rml}, Blue ML: {current_bml}, Dark ML: {current_dml}")
+
+    return "OK"
+
     gold_qry = "SELECT gold, num_green_ml, num_red_ml, num_blue_ml FROM gl_inv"
     with db.engine.begin() as connection:
         current_gold, current_gml, current_rml, current_bml = connection.execute(sqlalchemy.text(gold_qry)).fetchone()
@@ -51,35 +78,29 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     Args:
         wholesale_catalog (List[Barrel]): A list of Barrel objects representing the wholesale catalog.
     """
-    gold_qry = "SELECT gold, daily_spending FROM gl_inv"
+    daily_spending_qry = "SELECT daily_spending FROM gl_inv"
     with db.engine.begin() as connection:
-        gold, daily_spending = connection.execute(sqlalchemy.text(gold_qry)).fetchone()
-    
-    # Set the spending limit if gold is more than daily spending amount
+        daily_spending = connection.execute(sqlalchemy.text(daily_spending_qry)).scalar()
+
+    gold = get_current_gold()
     spending_limit = min(gold, daily_spending) if gold > daily_spending else gold
-    
-    # Mapping potion type arrays to their respective priorities
+
     potion_order = {
         (0, 0, 0, 1): 0,  # Dark
         (0, 0, 1, 0): 1,  # Blue
         (1, 0, 0, 0): 2,  # Red
         (0, 1, 0, 0): 3   # Green
     }
-    
-    # Categorizing barrels by size
-    large_barrels = []
-    medium_barrels = []
-    small_barrels = []
-    mini_barrels = []
+
+    large_barrels, medium_barrels, small_barrels, mini_barrels = [], [], [], []
 
     for barrel in wholesale_catalog:
         cost_per_ml = barrel.price / barrel.ml_per_barrel
         color = get_potion_type(barrel.potion_type)
-        potion_type_tuple = tuple(barrel.potion_type)  # Convert list to tuple for hashing
         barrel_info = {
             "sku": barrel.sku,
             "ml_per_barrel": barrel.ml_per_barrel,
-            "potion_type": potion_type_tuple,
+            "potion_type": tuple(barrel.potion_type),
             "price": barrel.price,
             "quantity": barrel.quantity,
             "cost_per_ml": cost_per_ml,
@@ -95,13 +116,14 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         else:
             mini_barrels.append(barrel_info)
 
-    # Sorting each category by potion type priority
     large_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     medium_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     small_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     mini_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
 
-    # Purchase one of each kind of mini barrel if gold is above 460
+    purchase_plan = []
+    total_price = 0
+
     if gold > 460:
         mini_purchase = []
         for barrel in mini_barrels:
@@ -110,13 +132,10 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 total_cost = barrels_to_buy * barrel["price"]
                 if total_cost <= spending_limit:
                     spending_limit -= total_cost
-                    mini_purchase.append({
-                        "sku": barrel["sku"],
-                        "quantity": barrels_to_buy
-                    })
+                    mini_purchase.append({"sku": barrel["sku"], "quantity": barrels_to_buy})
                     barrel["quantity"] -= barrels_to_buy
+                    total_price += total_cost
 
-        # Summarize mini purchase plan
         mini_plan = {}
         for item in mini_purchase:
             if item['sku'] in mini_plan:
@@ -124,18 +143,13 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             else:
                 mini_plan[item['sku']] = item['quantity']
 
-        mini_purchase_plan = [{"sku": sku, "quantity": quantity} for sku, quantity in mini_plan.items()]
-    else:
-        mini_purchase_plan = []
+        purchase_plan.extend([{"sku": sku, "quantity": quantity} for sku, quantity in mini_plan.items()])
 
-    # Function to process the barrels in each size category
     def process_barrels(barrels, available_gold):
-        purchase_list = []
-        total_spent = 0
+        purchase_list, total_spent = [], 0
 
         while available_gold > 0:
-            updated = False
-            purchased_colors = set()
+            updated, purchased_colors = False, set()
             for barrel in barrels:
                 if barrel["price"] <= available_gold and barrel["quantity"] > 0:
                     if barrel["potion_type"] not in purchased_colors:
@@ -144,10 +158,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                         if total_cost <= available_gold:
                             available_gold -= total_cost
                             total_spent += total_cost
-                            purchase_list.append({
-                                "sku": barrel["sku"],
-                                "quantity": barrels_to_buy
-                            })
+                            purchase_list.append({"sku": barrel["sku"], "quantity": barrels_to_buy})
                             barrel["quantity"] -= barrels_to_buy
                             purchased_colors.add(barrel["potion_type"])
                             updated = True
@@ -157,29 +168,20 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                         if total_cost <= available_gold:
                             available_gold -= total_cost
                             total_spent += total_cost
-                            purchase_list.append({
-                                "sku": barrel["sku"],
-                                "quantity": barrels_to_buy
-                            })
+                            purchase_list.append({"sku": barrel["sku"], "quantity": barrels_to_buy})
                             barrel["quantity"] -= barrels_to_buy
                             updated = True
-
             if not updated:
                 break
 
         return purchase_list, total_spent
 
-    purchase_plan = mini_purchase_plan  # Start with mini purchase plan
-    total_price = sum(item['price'] * item['quantity'] for item in mini_barrels if 'quantity' in item)  # Initial total price from mini barrels
-
-    # Process each category of barrels starting from the largest size
     for barrels in [large_barrels, medium_barrels, small_barrels, mini_barrels]:
         category_purchase, category_spent = process_barrels(barrels, spending_limit)
         purchase_plan.extend(category_purchase)
         total_price += category_spent
         spending_limit -= category_spent
 
-    # Summarize the final purchase plan
     summarized_plan = {}
     for item in purchase_plan:
         if item['sku'] in summarized_plan:
