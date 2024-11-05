@@ -102,6 +102,7 @@ def create_cart(new_cart: Customer):
         VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, '{day}'); """
         connection.execute(sqlalchemy.text(registry))
     print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}")
+    print(f"Inserted values: cart_id={cart_id}, customer_name={new_cart.customer_name}, class={new_cart.character_class}, level={new_cart.level}, day={day}")
     return {"cart_id": cart_id}
 
 
@@ -111,22 +112,31 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
-    """Add cart item to number of same items in the cart"""
+    cart_id = cart_id.strip('"')  # Remove any extra quotes
     with db.engine.begin() as connection:
-        potion = connection.execute(sqlalchemy.text(f"SELECT price, stocked FROM potions WHERE sku = '{item_sku}'")).fetchone()
+        potion = connection.execute(sqlalchemy.text("SELECT price, stocked FROM potions WHERE sku = :item_sku"), {"item_sku": item_sku}).fetchone()
         if potion:
             price, stocked = potion
             if stocked >= cart_item.quantity:
                 turba_price = cart_item.quantity * price
-                connection.execute(sqlalchemy.text(f"""
-                        INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
-                        VALUES ('{cart_id}', '{item_sku}', {cart_item.quantity}, {turba_price});"""))
-                class_text = connection.execute(sqlalchemy.text(f"SELECT class FROM cart_owners WHERE cart_id = '{cart_id}'")).scalar()
-                class_row = connection.execute(sqlalchemy.text(f"SELECT * FROM class_gems WHERE class = '{class_text}'")).fetchone()
+                connection.execute(sqlalchemy.text("""
+                    INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
+                    VALUES (:cart_id, :item_sku, :quantity, :turba_price)
+                """), {"cart_id": cart_id, "item_sku": item_sku, "quantity": cart_item.quantity, "turba_price": turba_price})
+                
+                class_text = connection.execute(sqlalchemy.text("SELECT class FROM cart_owners WHERE cart_id = :cart_id"), {"cart_id": cart_id}).scalar()
+                if class_text is None:
+                    return {"error": "Class not found for the given cart_id"}, 400
+
+                class_text = class_text.strip('"')
+                
+                class_row = connection.execute(sqlalchemy.text("SELECT * FROM class_gems WHERE class = :class_text"), {"class_text": class_text}).fetchone()
                 if not class_row:
-                    connection.execute(sqlalchemy.text(f"INSERT INTO class_gems (class) VALUES ('{class_text}')"))
+                    connection.execute(sqlalchemy.text("INSERT INTO class_gems (class) VALUES (:class_text)"), {"class_text": class_text})
+                
                 potion_column = item_sku.split('_')[0].upper()
-                connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = "{potion_column}" + {cart_item.quantity} WHERE class = \'{class_text}\''))
+                connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = "{potion_column}" + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})
+                
                 update_potion_inventory(item_sku, -cart_item.quantity)
                 print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
                 return {"success": True}
@@ -141,13 +151,13 @@ class CartCheckout(BaseModel):
 
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: str, cart_checkout: CartCheckout):
-    #WARNING: CHANGED cart_id: int TO cart_id: str
     """Processes the checkout for a specific cart."""
+    cart_id = cart_id.strip('"')  # Remove any extra quotes
     print(f"This customer has cart id: {cart_id}")
     print(f"NPC Payment String: {cart_checkout.payment}")
     with db.engine.begin() as connection:
-        qry = f"SELECT SUM(turba_price), SUM(in_cart) FROM zuto_carts WHERE cart_id = '{cart_id}'"
-        total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry)).fetchone()
+        qry = "SELECT SUM(turba_price), SUM(in_cart) FROM zuto_carts WHERE cart_id = :cart_id"
+        total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry), {"cart_id": cart_id}).fetchone()
         if total_gold_paid is None:
             return {"error": "Cart not found or empty"}, 404
         update_gold(total_gold_paid)
