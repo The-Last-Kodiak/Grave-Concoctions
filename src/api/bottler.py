@@ -43,11 +43,11 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 
 @router.post("/plan")
 def get_bottle_plan():
-    """Decide which potions to order based on available ml in barrels."""
-    green_ml = get_current_ml("GREEN")
-    red_ml = get_current_ml("RED")
-    blue_ml = get_current_ml("BLUE")
-    dark_ml = get_current_ml("DARK")
+    green_ml = get_current_ml("GREEN") or 0
+    red_ml = get_current_ml("RED") or 0
+    blue_ml = get_current_ml("BLUE") or 0
+    dark_ml = get_current_ml("DARK") or 0
+    
     available_ml = {"red": red_ml, "green": green_ml, "blue": blue_ml, "dark": dark_ml}
     potential_potions = []
     with db.engine.begin() as connection:
