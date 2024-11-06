@@ -87,7 +87,8 @@ def post_visits(visit_id: int, customers: list[Customer]):
     for custard in customers:
         with db.engine.begin() as connection:
             day = connection.execute(sqlalchemy.text("SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1")).fetchone()[0]
-            connection.execute(sqlalchemy.text(f"INSERT INTO npc_visits (visit_id, customer_name, character_class, level, v_day) VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level}, '{day}');"))
+            connection.execute(sqlalchemy.text(f"""INSERT INTO npc_visits (visit_id, customer_name, character_class, level, v_day) 
+            VALUES ({visit_id}, '{custard.customer_name}', '{custard.character_class}', {custard.level}, '{day}');"""))
             day_column = day.split('day')[0]
             character_class = custard.character_class
             class_row = connection.execute(sqlalchemy.text("SELECT * FROM class_visit_days WHERE class = :class"), {"class": character_class}).fetchone()
@@ -104,7 +105,7 @@ def create_cart(new_cart: Customer):
     cart_id = ''.join(secrets.choice(string.ascii_lowercase) for _ in range(7))
     with db.engine.begin() as connection:
         day = connection.execute(sqlalchemy.text("SELECT f_day FROM calendar ORDER BY r_date DESC LIMIT 1")).fetchone()[0]
-        registry = f"""INSERT INTO cart_owners (cart_id, name, class, lvl, day)
+        registry = f"""INSERT INTO cart_owners (cart_id, name, class, lvl, day) 
         VALUES ('{cart_id}', '{new_cart.customer_name}', '{new_cart.character_class}', {new_cart.level}, '{day}'); """
         connection.execute(sqlalchemy.text(registry))
         day_column = day.split('day')[0]

@@ -90,8 +90,8 @@ def get_capacity_plan():
         #result = connection.execute(sqlalchemy.text())
 
     return {
-        "potion_capacity": 50,
-        "ml_capacity": 10000
+        "potion_capacity": 1,
+        "ml_capacity": 1
         }
 
 class CapacityPurchase(BaseModel):
