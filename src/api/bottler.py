@@ -19,7 +19,7 @@ class PotionInventory(BaseModel):
     potion_type: list[int]
     quantity: int
 
-@router.post("/deliver_bottles/{order_id}")
+@router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
     potion_totals = {'red': 0, 'green': 0, 'blue': 0, 'dark': 0}
     type_str = ['red', 'green', 'blue', 'dark']
@@ -41,7 +41,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
             update_ml(color.upper(), -total)
             print(f"Total {color} ml used: {total}")
     print(f"CALLED BOTTLES DELIVERY. order_id: {order_id}")
-    return {"success": True}
+    return "OK"
 
 
 
