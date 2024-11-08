@@ -15,7 +15,7 @@ router = APIRouter(
 def update_gold(change):
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
-            INSERT INTO ledgers (inventory_type, change) VALUES ('gold', {change});
+            INSERT INTO ledgers (inventory_type, change, total) VALUES ('gold', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'gold'), 0) + {change});
             UPDATE gl_inv SET gold = (SELECT SUM(change) FROM ledgers WHERE inventory_type = 'gold');"""))
 
 def get_current_gold():
@@ -25,7 +25,7 @@ def get_current_gold():
 def update_potion_inventory(sku, change):
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
-            INSERT INTO ledgers (inventory_type, change) VALUES ('{sku}', {change});
+            INSERT INTO ledgers (inventory_type, change, total) VALUES ('{sku}', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = '{sku}'), 0) + {change});
             UPDATE potions SET stocked = (SELECT SUM(change) FROM ledgers WHERE inventory_type = '{sku}') WHERE sku = '{sku}';"""))
 
 def get_current_potion_inventory(sku):
@@ -36,7 +36,7 @@ def update_ml(type, change):
     with db.engine.begin() as connection:
         ml_column = f"num_{type.lower()}_ml"
         connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
-            INSERT INTO ledgers (inventory_type, change) VALUES ('{type}_ml', {change});
+            INSERT INTO ledgers (inventory_type, change, total) VALUES ('{type}_ml', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = '{type}_ml'), 0) + {change});
             UPDATE gl_inv SET {ml_column} = (SELECT SUM(change) FROM ledgers WHERE inventory_type = '{type}_ml');"""))
 
 def get_current_ml(type):
@@ -61,18 +61,6 @@ def get_inventory():
     dark_ml = get_current_ml("DARK") or 0
     total_ml = green_ml + red_ml + blue_ml + dark_ml
 
-    print(f"CALLED GET INVENTORY. Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}, Dark ML: {dark_ml}")
-    print(f"Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
-    return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold}
-
-    """Get the full inventory of all kinds of items."""
-    gl_qry = "SELECT num_green_ml, num_red_ml, num_blue_ml, num_dark_ml, gold FROM gl_inv"
-    potions_qry = "SELECT sku, price, stocked FROM potions WHERE stocked > 0"
-    with db.engine.begin() as connection:
-        green_ml, red_ml, blue_ml, dark_ml, gold = connection.execute(sqlalchemy.text(gl_qry)).fetchone()
-        potions = connection.execute(sqlalchemy.text(potions_qry)).fetchall()
-    total_potions = sum([potion.stocked for potion in potions])
-    total_ml = green_ml + red_ml + blue_ml + dark_ml
     print(f"CALLED GET INVENTORY. Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}, Dark ML: {dark_ml}")
     print(f"Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
     return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold}

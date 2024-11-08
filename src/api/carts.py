@@ -140,11 +140,9 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
                 if class_text is None:
                     return {"error": "Class not found for the given cart_id"}, 400
                 class_text = class_text.strip('"')
-                class_row = connection.execute(sqlalchemy.text("SELECT * FROM class_gems WHERE class = :class_text"), {"class_text": class_text}).fetchone()
-                if not class_row:
-                    connection.execute(sqlalchemy.text("INSERT INTO class_gems (class) VALUES (:class_text)"), {"class_text": class_text})
+                connection.execute(sqlalchemy.text("""INSERT INTO class_gems (class) VALUES (:class_text)ON CONFLICT (class) DO NOTHING"""), {"class_text": class_text})               
                 potion_column = item_sku.split('_')[0].upper()
-                connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = "{potion_column}" + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})
+                connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = COALESCE("{potion_column}", 0) + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})                
                 update_potion_inventory(item_sku, -cart_item.quantity)
                 print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
                 return {"success": True}
