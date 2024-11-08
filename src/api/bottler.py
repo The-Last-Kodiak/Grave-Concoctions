@@ -21,28 +21,25 @@ class PotionInventory(BaseModel):
 
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
-    potion_totals = {'red': 0, 'green': 0, 'blue': 0, 'dark': 0}
+    ml_totals = {'red': 0, 'green': 0, 'blue': 0, 'dark': 0}
     type_str = ['red', 'green', 'blue', 'dark']
     for potinv in potions_delivered:
-        potion_type = potinv.potion_type
-        quantity = potinv.quantity
         query = "SELECT sku FROM potions WHERE typ = :potion_type LIMIT 1"
         with db.engine.begin() as connection:
-            result = connection.execute(sqlalchemy.text(query), {"potion_type": potion_type}).fetchone()
+            result = connection.execute(sqlalchemy.text(query), {"potion_type": potinv.potion_type}).fetchone()
         sku = result[0] if result else None
         if not sku:
             continue  # Skip if no matching SKU is found
-        for i, amount in enumerate(potion_type):
+        update_potion_inventory(sku, potinv.quantity)
+        for i, amount in enumerate(potinv.potion_type):
             if amount > 0:
-                potion_totals[type_str[i]] += amount * quantity
-                update_potion_inventory(sku, quantity)
-    for color, total in potion_totals.items():
+                ml_totals[type_str[i]] += amount * potinv.quantity
+    for color, total in ml_totals.items():
         if total > 0:
             update_ml(color.upper(), -total)
             print(f"Total {color} ml used: {total}")
     print(f"CALLED BOTTLES DELIVERY. order_id: {order_id}")
     return "OK"
-
 
 
 @router.post("/plan")
