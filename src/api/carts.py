@@ -36,7 +36,7 @@ class search_sort_order(str, Enum):
 def search_orders(
     customer_name: str = "",
     potion_sku: str = "",
-    search_page: str = "",
+    search_page: str = "0",
     sort_col: search_sort_options = search_sort_options.timestamp,
     sort_order: search_sort_order = search_sort_order.desc,
 ):
@@ -94,8 +94,12 @@ def search_orders(
     else:
         query = query.order_by(order_by.desc())
 
-    if search_page:
-        query = query.offset(int(search_page) * 5)
+    try: 
+        page_number = int(search_page) 
+    except ValueError: 
+        page_number = 0
+    if page_number > 0: 
+        query = query.offset(page_number * 5)
 
     with db.engine.begin() as connection:
         results_db = connection.execute(query.limit(5))
