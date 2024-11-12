@@ -22,7 +22,7 @@ def reset():
             TRUNCATE TABLE ledgers;
             UPDATE gl_inv SET gold = 100, num_green_ml = 0, num_red_ml = 0, num_blue_ml = 0, num_dark_ml = 0;
             UPDATE potions SET stocked = 0;
-            INSERT INTO ledgers (inventory_type, change) VALUES ('gold', 100);"""))
+            INSERT INTO ledgers (inventory_type, change, total) VALUES ('gold', 100, 100);"""))
     print("Successfully Reset Store")
     return "Successfully Reset Inventory"
 
