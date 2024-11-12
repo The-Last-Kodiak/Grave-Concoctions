@@ -1,4 +1,5 @@
 import sqlalchemy
+from sqlalchemy import select
 from src import database as db
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
@@ -8,6 +9,11 @@ import uuid
 import secrets
 import string
 from src.api.inventory import update_gold, get_current_gold, update_potion_inventory, get_current_potion_inventory, update_ml, get_current_ml
+from sqlalchemy import create_engine, MetaData, Table
+metadata_obj = MetaData()
+zuto_carts = Table("zuto_carts", metadata_obj, autoload_with=db.engine)
+cart_owners = Table("cart_owners", metadata_obj, autoload_with=db.engine)
+potions = Table("potions", metadata_obj, autoload_with=db.engine)
 
 
 router = APIRouter(
@@ -58,21 +64,60 @@ def search_orders(
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
     """
+    query = (
+        select(
+            cart_owners.c.name.label("customer_name"),
+            zuto_carts.c.sku.label("potion_sku"),
+            zuto_carts.c.in_cart.label("total_potions_bought"),
+            zuto_carts.c.turba_price.label("total_cost"),
+            zuto_carts.c.r_date.label("timestamp")
+        ).select_from(
+            zuto_carts.join(cart_owners, zuto_carts.c.cart_id == cart_owners.c.cart_id)
+                      .join(potions, zuto_carts.c.sku == potions.c.sku)
+        ))
+    if customer_name:
+        query = query.where(cart_owners.c.name.ilike(f"%{customer_name}%"))
+    if potion_sku:
+        query = query.where(zuto_carts.c.sku.ilike(f"%{potion_sku}%"))
+
+    if sort_col == search_sort_options.customer_name:
+        order_by = cart_owners.c.name
+    elif sort_col == search_sort_options.item_sku:
+        order_by = zuto_carts.c.sku
+    elif sort_col == search_sort_options.line_item_total:
+        order_by = zuto_carts.c.turba_price
+    else:
+        order_by = zuto_carts.c.r_date
+
+    if sort_order == search_sort_order.asc:
+        query = query.order_by(order_by.asc())
+    else:
+        query = query.order_by(order_by.desc())
+
+    if search_page:
+        query = query.offset(int(search_page) * 5)
+
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text())
+        results_db = connection.execute(query.limit(5))
+        results = []
+        for row in results_db:
+            results.append(
+                {
+                    "line_item_id": uuid.uuid1(),
+                    "item_sku": f"{row.total_potions_bought} {row.potion_sku}",
+                    "customer_name": row.customer_name,
+                    "line_item_total": row.total_cost,
+                    "timestamp": row.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+                }
+            )
+
+        prev = str(int(search_page) - 1) if search_page and int(search_page) > 0 else ""
+        next_page = str(int(search_page) + 1) if len(results) >= 5 else ""
 
     return {
-        "previous": "",
-        "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
-        ],
+        "previous": prev,
+        "next": next_page,
+        "results": results,
     }
 
 
