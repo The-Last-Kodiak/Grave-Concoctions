@@ -54,7 +54,7 @@ def get_bottle_plan():
     with db.engine.begin() as connection:
         pot_cap = connection.execute(sqlalchemy.text("SELECT pot_cap FROM gl_inv")).scalar()
         potions = connection.execute(sqlalchemy.text("SELECT typ, norm FROM potions WHERE selling = TRUE ORDER BY lead DESC")).fetchall()
-        total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stock) FROM potions")).scalar()
+        total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stocked) FROM potions")).scalar()
     pot_cap -= total_potions_in_stock
     for potion in potions:
         typ_array, norm = potion
