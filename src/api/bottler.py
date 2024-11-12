@@ -52,7 +52,10 @@ def get_bottle_plan():
     available_ml = {"red": red_ml, "green": green_ml, "blue": blue_ml, "dark": dark_ml}
     potential_potions = []
     with db.engine.begin() as connection:
+        pot_cap = connection.execute(sqlalchemy.text("SELECT pot_cap FROM gl_inv")).scalar()
         potions = connection.execute(sqlalchemy.text("SELECT typ, norm FROM potions WHERE selling = TRUE ORDER BY lead DESC")).fetchall()
+        total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stock) FROM potions")).scalar()
+    pot_cap -= total_potions_in_stock
     for potion in potions:
         typ_array, norm = potion
         can_make = all(available_ml[color] >= amount for color, amount in zip(["red", "green", "blue", "dark"], typ_array) if amount > 0)
@@ -67,11 +70,12 @@ def get_bottle_plan():
             typ_array, norm, in_cart = potential_potions[i]
             if norm > 0:
                 can_buy = all(available_ml[color] >= amount for color, amount in zip(["red", "green", "blue", "dark"], typ_array) if amount > 0)
-                if can_buy:
+                if can_buy and pot_cap > 0:
                     for color, amount in zip(["red", "green", "blue", "dark"], typ_array):
                         if amount > 0:
                             available_ml[color] -= amount
                     potential_potions[i] = (typ_array, norm - 1, in_cart + 1)
+                    pot_cap -= 1
                     updated = True
     for typ_array, norm, in_cart in potential_potions:
         if in_cart > 0:
