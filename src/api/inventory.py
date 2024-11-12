@@ -77,9 +77,9 @@ def get_capacity_plan():
     gold = get_current_gold()
     
     return {
-            "potion_capacity": 0,
-            "ml_capacity": 0
-            }
+        "potion_capacity": 1,
+        "ml_capacity": 1
+        }
 
 class CapacityPurchase(BaseModel):
     potion_capacity: int
