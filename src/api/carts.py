@@ -112,11 +112,10 @@ def search_orders(
                     "customer_name": row.customer_name,
                     "line_item_total": row.total_cost,
                     "timestamp": row.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
-                }
-            )
+                })
 
-        prev = str(int(search_page) - 1) if search_page and int(search_page) > 0 else ""
-        next_page = str(int(search_page) + 1) if len(results) >= 5 else ""
+        prev = str(page_number - 1) if page_number > 0 else ""
+        next_page = str(page_number + 1) if len(results) >= 5 else ""
 
     return {
         "previous": prev,
