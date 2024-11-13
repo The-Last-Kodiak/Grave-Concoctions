@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
+import threading
 import uuid
 import secrets
 import string
@@ -122,6 +123,19 @@ def search_orders(
         "next": next_page,
         "results": results,
     }
+
+
+
+
+def scheduled_search_orders():
+    result = search_orders(customer_name="", potion_sku="")
+    print(f"Keeping the shop awake every 20 minutes: {result}")
+
+    # Schedule the next call in 20 minutes
+    threading.Timer(60, scheduled_search_orders).start()
+
+
+scheduled_search_orders()
 
 
 class Customer(BaseModel):
