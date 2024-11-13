@@ -132,7 +132,7 @@ def scheduled_search_orders():
     print(f"Keeping the shop awake every 20 minutes: {result}")
 
     # Schedule the next call in 20 minutes
-    threading.Timer(60, scheduled_search_orders).start()
+    threading.Timer(1200, scheduled_search_orders).start()
 
 
 scheduled_search_orders()
