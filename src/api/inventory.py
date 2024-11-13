@@ -73,13 +73,35 @@ def get_capacity_plan():
     Start with 1 capacity for 50 potions 
     and 1 capacity for 10000 ml of potion. Each additional 
     capacity unit costs 1000 gold.
+    Determines the capacity plan for potions and ml based on the available gold and current stock levels.
+    Starts with 1 capacity for 50 potions and 1 capacity for 10000 ml of potion. Each additional capacity unit costs 1000 gold.
     """
     gold = get_current_gold()
-    
+    with db.engine.begin() as connection:
+        pot_cap, ml_cap, p_space, ml_space = connection.execute(sqlalchemy.text("SELECT pot_cap, ml_cap, p_space_b4buy, ml_space_b4buy FROM gl_inv")).fetchone()
+        total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stock) FROM potions")).scalar()
+        total_ml_in_stock = connection.execute(sqlalchemy.text("SELECT num_red_ml + num_green_ml + num_blue_ml + num_dark_ml FROM gl_inv")).scalar()
+    potion_capacity = 0
+    ml_capacity = 0
+
+    if total_potions_in_stock >= (pot_cap - p_space) and gold >= 1760 and total_ml_in_stock >= ml_space:
+        gold -= 1000
+        potion_capacity += 1
+        if gold >= 2860:
+            gold -= 1000
+            potion_capacity += 1
+
+    if total_ml_in_stock >= (ml_cap - ml_space) and gold >= 1500 and total_potions_in_stock >= p_space:
+        gold -= 1000
+        ml_capacity += 1
+        if gold >= 2500:
+            gold -= 1000
+            ml_capacity += 1
+
     return {
-        "potion_capacity": 0,
-        "ml_capacity": 0
-        }
+        "potion_capacity": potion_capacity,
+        "ml_capacity": ml_capacity
+    }
 
 class CapacityPurchase(BaseModel):
     potion_capacity: int
@@ -93,6 +115,26 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
     and 1 capacity for 10000 ml of potion. Each additional 
     capacity unit costs 1000 gold.
     """
-    #with db.engine.begin() as connection:
-        #result = connection.execute(sqlalchemy.text())
+    gold = get_current_gold()
+    total_cost = (capacity_purchase.potion_capacity + capacity_purchase.ml_capacity) * 1000
+    if gold < total_cost:
+        return {"error": "Not enough gold to purchase the requested capacities."}
+    
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text(
+            "UPDATE gl_inv SET pot_cap = pot_cap + :potion_capacity, ml_cap = ml_cap + :ml_capacity"
+            ), {"potion_capacity": capacity_purchase.potion_capacity * 50, "ml_capacity": capacity_purchase.ml_capacity * 10000})
+        
+        if capacity_purchase.potion_capacity > 0:
+            connection.execute(sqlalchemy.text(
+                "INSERT INTO ledgers (inventory_type, change, total) VALUES ('potion_capacity', :change, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'potion_capacity'), 50) + :change)"
+                ), {"change": 50 * capacity_purchase.potion_capacity})
+        
+        if capacity_purchase.ml_capacity > 0:
+            connection.execute(sqlalchemy.text(
+                "INSERT INTO ledgers (inventory_type, change, total) VALUES ('ml_capacity', :change, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'ml_capacity'), 10000) + :change)"
+                ), {"change": 10000 * capacity_purchase.ml_capacity})
+    
+    update_gold(-total_cost)
+    print(f"DELIVER CAPACITY PLAN CALLED. Order ID: {order_id}, Capacities Delivered: {capacity_purchase}")
     return "OK"
