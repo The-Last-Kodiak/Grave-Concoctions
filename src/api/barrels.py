@@ -63,6 +63,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         typnorm = connection.execute(sqlalchemy.text("SELECT typ, norm FROM potions WHERE selling = TRUE AND norm > 0")).fetchall()
     ml_cap -= (dark_ml + red_ml + green_ml + blue_ml)
     half_average_ml = (red_ml + green_ml + blue_ml) / 6
+    current_inventory = [red_ml, green_ml, blue_ml, dark_ml]
     gold = get_current_gold()
     total_price = 0
     purchase_plan = []
@@ -73,16 +74,19 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         for z in range(len(weighted_sum)):
             weighted_sum[z] += typ[z]*norm
     print(f"Best Balance: {weighted_sum}")
+    deficit = [weighted_sum[i] - current_inventory[i] for i in range(len(weighted_sum))]
+    priority_score = [deficit[i] * weighted_sum[i] for i in range(len(deficit))]
+    print(f"Priority Score: {priority_score}")
     potion_order = {
         (0, 0, 0, 1): 0,  # Dark
         (0, 0, 1, 0): 1,  # Blue
         (1, 0, 0, 0): 2,  # Red
         (0, 1, 0, 0): 3   # Green
     }
-    order_indices = sorted(range(len(weighted_sum)), key=lambda i: (-weighted_sum[i], i))
+    order_indices = sorted(range(len(priority_score)), key=lambda i: (-priority_score[i], i))
     best_potion_order = {}
     colors = [(1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)] # [Red, Green, Blue, Dark]
-    for i, index in enumerate(order_indices): 
+    for i, index in enumerate(order_indices):
         best_potion_order[colors[index]] = i
     potion_order = best_potion_order
     
@@ -140,7 +144,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     small_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     mini_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     
-    if gold > 460 or blue_ml == 0 or red_ml == 0 or green_ml == 0:
+    if gold > 460 or blue_ml < 200 or red_ml < 200 or green_ml < 200:
         mini_purchase = []
         for barrel in mini_barrels:
             if barrel["price"] <= spending_limit and barrel["quantity"] > 0:
