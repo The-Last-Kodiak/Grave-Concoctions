@@ -79,7 +79,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         (1, 0, 0, 0): 2,  # Red
         (0, 1, 0, 0): 3   # Green
     }
-    order_indices = sorted(range(len(weighted_sum)), key=lambda i: -weighted_sum[i])
+    order_indices = sorted(range(len(weighted_sum)), key=lambda i: (-weighted_sum[i], i))
     best_potion_order = {}
     colors = [(1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)] # [Red, Green, Blue, Dark]
     for i, index in enumerate(order_indices): 
@@ -140,7 +140,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     small_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     mini_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     
-    if gold > 110 and blue_ml == 0 and red_ml == 0:
+    if gold > 460 or blue_ml == 0 or red_ml == 0 or green_ml == 0:
         mini_purchase = []
         for barrel in mini_barrels:
             if barrel["price"] <= spending_limit and barrel["quantity"] > 0:
