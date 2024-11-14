@@ -79,7 +79,7 @@ def get_capacity_plan():
     gold = get_current_gold()
     with db.engine.begin() as connection:
         pot_cap, ml_cap, p_space, ml_space = connection.execute(sqlalchemy.text("SELECT pot_cap, ml_cap, p_space_b4buy, ml_space_b4buy FROM gl_inv")).fetchone()
-        total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stock) FROM potions")).scalar()
+        total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stocked) FROM potions")).scalar()
         total_ml_in_stock = connection.execute(sqlalchemy.text("SELECT num_red_ml + num_green_ml + num_blue_ml + num_dark_ml FROM gl_inv")).scalar()
     potion_capacity = 0
     ml_capacity = 0
@@ -121,10 +121,11 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
         return {"error": "Not enough gold to purchase the requested capacities."}
     
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(
-            "UPDATE gl_inv SET pot_cap = pot_cap + :potion_capacity, ml_cap = ml_cap + :ml_capacity"
-            ), {"potion_capacity": capacity_purchase.potion_capacity * 50, "ml_capacity": capacity_purchase.ml_capacity * 10000})
-        
+        if capacity_purchase.potion_capacity > 0 and capacity_purchase.ml_capacity > 0:
+            connection.execute(sqlalchemy.text(
+                "UPDATE gl_inv SET pot_cap = pot_cap + :potion_capacity, ml_cap = ml_cap + :ml_capacity"
+                ), {"potion_capacity": capacity_purchase.potion_capacity * 50, "ml_capacity": capacity_purchase.ml_capacity * 10000})
+            
         if capacity_purchase.potion_capacity > 0:
             connection.execute(sqlalchemy.text(
                 "INSERT INTO ledgers (inventory_type, change, total) VALUES ('potion_capacity', :change, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'potion_capacity'), 50) + :change)"
