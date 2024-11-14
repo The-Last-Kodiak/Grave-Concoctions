@@ -60,12 +60,32 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """
     with db.engine.begin() as connection: 
         daily_spending, dark_ml, red_ml, green_ml, blue_ml, ml_cap = connection.execute(sqlalchemy.text("SELECT daily_spending, num_dark_ml, num_red_ml, num_green_ml, num_blue_ml, ml_cap FROM gl_inv")).fetchone()
+        typnorm = connection.execute(sqlalchemy.text("SELECT typ, norm FROM potions WHERE selling = TRUE AND norm > 0")).fetchall()
     ml_cap -= (dark_ml + red_ml + green_ml + blue_ml)
     half_average_ml = (red_ml + green_ml + blue_ml) / 6
     gold = get_current_gold()
     total_price = 0
     purchase_plan = []
     dark_barrels = []
+    weighted_sum = [0, 0, 0, 0]
+    for row in typnorm:
+        typ, norm = row
+        for z in range(len(weighted_sum)):
+            weighted_sum[z] += typ[z]*norm
+    print(f"Best Balance: {weighted_sum}")
+    potion_order = {
+        (0, 0, 0, 1): 0,  # Dark
+        (0, 0, 1, 0): 1,  # Blue
+        (1, 0, 0, 0): 2,  # Red
+        (0, 1, 0, 0): 3   # Green
+    }
+    order_indices = sorted(range(len(weighted_sum)), key=lambda i: -weighted_sum[i])
+    best_potion_order = {}
+    colors = [(1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)] # [Red, Green, Blue, Dark]
+    for i, index in enumerate(order_indices): 
+        best_potion_order[colors[index]] = i
+    potion_order = best_potion_order
+    
     for barrel in wholesale_catalog:
         if tuple(barrel.potion_type) == (0, 0, 0, 1):
             dark_barrels.append(barrel)
@@ -90,12 +110,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     else:
         purchase_plan = []
 
-    potion_order = {
-        (0, 0, 0, 1): 0,  # Dark
-        (0, 0, 1, 0): 1,  # Blue
-        (1, 0, 0, 0): 2,  # Red
-        (0, 1, 0, 0): 3   # Green
-    }
     spending_limit = min(gold, daily_spending) if gold > daily_spending else gold
     large_barrels, medium_barrels, small_barrels, mini_barrels = [], [], [], []
 
@@ -126,7 +140,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     small_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     mini_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     
-    if gold > 460:
+    if gold > 110 and blue_ml == 0 and red_ml == 0:
         mini_purchase = []
         for barrel in mini_barrels:
             if barrel["price"] <= spending_limit and barrel["quantity"] > 0:
