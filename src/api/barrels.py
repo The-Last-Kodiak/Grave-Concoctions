@@ -144,18 +144,19 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     small_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     mini_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     
-    if gold > 460 or blue_ml < 200 or red_ml < 200 or green_ml < 200:
-        mini_purchase = []
-        for barrel in mini_barrels:
-            if barrel["price"] <= spending_limit and barrel["quantity"] > 0:
-                barrels_to_buy = min(1, barrel["quantity"])
-                total_cost = barrels_to_buy * barrel["price"]
-                if total_cost <= spending_limit and barrel["ml_per_barrel"] <= ml_cap and barrels_to_buy == 1:
-                    ml_cap -= barrel["ml_per_barrel"]
-                    spending_limit -= total_cost
-                    mini_purchase.append({"sku": barrel["sku"], "quantity": barrels_to_buy})
-                    barrel["quantity"] -= barrels_to_buy
-                    total_price += total_cost
+    if gold < 320:
+        if blue_ml < 200 or red_ml < 200 or green_ml < 200:
+            mini_purchase = []
+            for barrel in mini_barrels:
+                if barrel["price"] <= spending_limit and barrel["quantity"] > 0:
+                    barrels_to_buy = min(1, barrel["quantity"])
+                    total_cost = barrels_to_buy * barrel["price"]
+                    if total_cost <= spending_limit and barrel["ml_per_barrel"] <= ml_cap and barrels_to_buy == 1:
+                        ml_cap -= barrel["ml_per_barrel"]
+                        spending_limit -= total_cost
+                        mini_purchase.append({"sku": barrel["sku"], "quantity": barrels_to_buy})
+                        barrel["quantity"] -= barrels_to_buy
+                        total_price += total_cost
 
         mini_plan = {}
         for item in mini_purchase:
