@@ -203,7 +203,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         return purchase_list, total_spent, ml_bought
 
 
-    for barrels in [large_barrels, medium_barrels, small_barrels, mini_barrels]:
+    for barrels in [large_barrels, medium_barrels, small_barrels]:
         category_purchase, category_spent, ml_taken = process_barrels(barrels, spending_limit, ml_cap)
         ml_cap -= ml_taken
         purchase_plan.extend(category_purchase)
