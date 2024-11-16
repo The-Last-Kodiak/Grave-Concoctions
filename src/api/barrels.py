@@ -144,7 +144,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     small_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     mini_barrels.sort(key=lambda x: potion_order[x["potion_type"]])
     
-    if gold < 320:
+    if spending_limit < 320:
         if blue_ml < 200 or red_ml < 200 or green_ml < 200:
             mini_purchase = []
             for barrel in mini_barrels:
@@ -203,7 +203,13 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         return purchase_list, total_spent, ml_bought
 
 
-    for barrels in [large_barrels, medium_barrels, small_barrels]:
+    if spending_limit >= 2250:
+        barrel_categories = [large_barrels]
+    elif spending_limit >= 800:
+        barrel_categories = [large_barrels, medium_barrels]
+    else:
+        barrel_categories = [large_barrels, medium_barrels, small_barrels]
+    for barrels in barrel_categories:
         category_purchase, category_spent, ml_taken = process_barrels(barrels, spending_limit, ml_cap)
         ml_cap -= ml_taken
         purchase_plan.extend(category_purchase)
