@@ -81,6 +81,8 @@ def get_capacity_plan():
         pot_cap, ml_cap, p_space, ml_space = connection.execute(sqlalchemy.text("SELECT pot_cap, ml_cap, p_space_b4buy, ml_space_b4buy FROM gl_inv")).fetchone()
         total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stocked) FROM potions")).scalar()
         total_ml_in_stock = connection.execute(sqlalchemy.text("SELECT num_red_ml + num_green_ml + num_blue_ml + num_dark_ml FROM gl_inv")).scalar()
+    print(f"Total ML: {total_ml_in_stock} with {ml_cap} ceiling")
+    print(f"Total Potions: {total_potions_in_stock} with {pot_cap} ceiling")
     potion_capacity = 0
     ml_capacity = 0
 
@@ -97,7 +99,7 @@ def get_capacity_plan():
         if gold >= 2500:
             gold -= 1000
             ml_capacity += 1
-
+    print(f"Buying {potion_capacity} pot_cap & {ml_capacity} ml_cap")
     return {
         "potion_capacity": potion_capacity,
         "ml_capacity": ml_capacity
