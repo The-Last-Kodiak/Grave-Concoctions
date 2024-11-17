@@ -99,7 +99,7 @@ def get_capacity_plan():
         if gold >= 2500:
             gold -= 1000
             ml_capacity += 1
-    print(f"Buying {potion_capacity} pot_cap & {ml_capacity} ml_cap")
+    print(f"Buying: {potion_capacity} pot_cap & {ml_capacity} ml_cap")
     return {
         "potion_capacity": potion_capacity,
         "ml_capacity": ml_capacity
