@@ -75,7 +75,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             weighted_sum[z] += typ[z]*norm
     print(f"Best Balance: {weighted_sum}")
     deficit = [weighted_sum[i] - current_inventory[i] for i in range(len(weighted_sum))]
-    priority_score = [deficit[i] * weighted_sum[i] for i in range(len(deficit))]
+    priority_score = [(deficit[i] * weighted_sum[i])/100000 for i in range(len(deficit))]
     print(f"Priority Score: {priority_score}")
     potion_order = {
         (0, 0, 0, 1): 0,  # Dark
@@ -89,6 +89,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     for i, index in enumerate(order_indices):
         best_potion_order[colors[index]] = i
     potion_order = best_potion_order
+    print(f"Color Order: {potion_order}")
     
     for barrel in wholesale_catalog:
         if tuple(barrel.potion_type) == (0, 0, 0, 1):
@@ -158,14 +159,14 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                         barrel["quantity"] -= barrels_to_buy
                         total_price += total_cost
 
-        mini_plan = {}
-        for item in mini_purchase:
-            if item['sku'] in mini_plan:
-                mini_plan[item['sku']] += item['quantity']
-            else:
-                mini_plan[item['sku']] = item['quantity']
+            mini_plan = {}
+            for item in mini_purchase:
+                if item['sku'] in mini_plan:
+                    mini_plan[item['sku']] += item['quantity']
+                else:
+                    mini_plan[item['sku']] = item['quantity']
 
-        purchase_plan.extend([{"sku": sku, "quantity": quantity} for sku, quantity in mini_plan.items()])
+            purchase_plan.extend([{"sku": sku, "quantity": quantity} for sku, quantity in mini_plan.items()])
 
     def process_barrels(barrels, available_gold, ml_capacity):
         ml_bought = 0
