@@ -84,14 +84,14 @@ def get_capacity_plan():
     potion_capacity = 0
     ml_capacity = 0
 
-    if total_potions_in_stock >= (pot_cap - p_space) and gold >= 1760 and total_ml_in_stock >= ml_space:
+    if total_potions_in_stock >= (pot_cap - p_space) and gold >= 1060 and total_ml_in_stock >= ml_space:
         gold -= 1000
         potion_capacity += 1
         if gold >= 2860:
             gold -= 1000
             potion_capacity += 1
 
-    if total_ml_in_stock >= (ml_cap - ml_space) and gold >= 1500 and total_potions_in_stock >= p_space:
+    if total_ml_in_stock >= (ml_cap - ml_space) and gold >= 1050 and total_potions_in_stock >= p_space:
         gold -= 1000
         ml_capacity += 1
         if gold >= 2500:
