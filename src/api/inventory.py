@@ -78,7 +78,7 @@ def get_capacity_plan():
     """
     gold = get_current_gold()
     with db.engine.begin() as connection:
-        pot_cap, ml_cap, p_space, ml_space = connection.execute(sqlalchemy.text("SELECT pot_cap, ml_cap, p_space_b4buy, ml_space_b4buy FROM gl_inv")).fetchone()
+        pot_cap, ml_cap, p_expanse, ml_expanse = connection.execute(sqlalchemy.text("SELECT pot_cap, ml_cap, p_expanse, ml_expanse FROM gl_inv")).fetchone()
         total_potions_in_stock = connection.execute(sqlalchemy.text("SELECT SUM(stocked) FROM potions")).scalar()
         total_ml_in_stock = connection.execute(sqlalchemy.text("SELECT num_red_ml + num_green_ml + num_blue_ml + num_dark_ml FROM gl_inv")).scalar()
     print(f"Total ML: {total_ml_in_stock} with {ml_cap} ceiling")
@@ -87,20 +87,24 @@ def get_capacity_plan():
     ml_capacity = 0
 
     #if total_potions_in_stock >= (pot_cap - p_space) and gold >= 1000 and total_ml_in_stock >= ml_space:
-    if total_potions_in_stock >= (pot_cap - p_space) and gold >= 1000:
-        gold -= 1000
-        potion_capacity += 1
-        if gold >= 2060:
-            gold -= 1000
-            potion_capacity += 1
-
-    #if total_ml_in_stock >= (ml_cap - ml_space) and gold >= 1000 and total_potions_in_stock >= p_space:
-    if total_ml_in_stock >= (ml_cap - ml_space) and gold >= 1000:
-        gold -= 1000
-        ml_capacity += 1
-        if gold >= 2070:
+    for ml in range(ml_expanse):
+        if gold >= 1320:
             gold -= 1000
             ml_capacity += 1
+            ml += 1
+    for p in range(p_expanse):
+        if gold >= 1320:
+            gold -= 1000
+            potion_capacity += 1
+            p += 1
+    #if total_potions_in_stock >= (pot_cap - p_space) and gold >= 1060:
+        #gold -= 1000
+        #potion_capacity += 1
+
+    #if total_ml_in_stock >= (ml_cap - ml_space) and gold >= 1000 and total_potions_in_stock >= p_space:
+    #if total_ml_in_stock >= (ml_cap - ml_space) and gold >= 1000:
+        #gold -= 1000
+        #ml_capacity += 1
     print(f"Buying: {potion_capacity} pot_cap & {ml_capacity} ml_cap")
     return {
         "potion_capacity": potion_capacity,
