@@ -204,7 +204,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         return purchase_list, total_spent, ml_bought
 
 
-    if spending_limit >= 2250:
+    if spending_limit >= 4250:
         barrel_categories = [large_barrels]
     elif spending_limit >= 800:
         barrel_categories = [large_barrels, medium_barrels]

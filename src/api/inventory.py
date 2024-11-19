@@ -43,6 +43,18 @@ def get_current_ml(type):
     with db.engine.begin() as connection:
         return connection.execute(sqlalchemy.text(f"SELECT COALESCE(SUM(change), 0) FROM ledgers WHERE inventory_type = '{type}_ml';")).scalar()
 
+def update_potion_cap(change):
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
+            INSERT INTO ledgers (inventory_type, change, total) VALUES ('potion_capacity', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'potion_capacity'), 0) + {change});
+            UPDATE gl_inv SET pot_cap = (SELECT SUM(change) FROM ledgers WHERE inventory_type = 'potion_capacity');"""))
+
+def update_ml_cap(change):
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
+            INSERT INTO ledgers (inventory_type, change, total) VALUES ('ml_capacity', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'ml_capacity'), 0) + {change});
+            UPDATE gl_inv SET ml_cap = (SELECT SUM(change) FROM ledgers WHERE inventory_type = 'ml_capacity');"""))
+
 
 
 @router.get("/audit")
@@ -128,21 +140,11 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
     if gold < total_cost:
         return {"error": "Not enough gold to purchase the requested capacities."}
     
-    with db.engine.begin() as connection:
-        if capacity_purchase.potion_capacity > 0 and capacity_purchase.ml_capacity > 0:
-            connection.execute(sqlalchemy.text(
-                "UPDATE gl_inv SET pot_cap = pot_cap + :potion_capacity, ml_cap = ml_cap + :ml_capacity"
-                ), {"potion_capacity": capacity_purchase.potion_capacity * 50, "ml_capacity": capacity_purchase.ml_capacity * 10000})
-            
-        if capacity_purchase.potion_capacity > 0:
-            connection.execute(sqlalchemy.text(
-                "INSERT INTO ledgers (inventory_type, change, total) VALUES ('potion_capacity', :change, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'potion_capacity'), 50) + :change)"
-                ), {"change": 50 * capacity_purchase.potion_capacity})
+    if capacity_purchase.potion_capacity > 0:
+        update_potion_cap(50 * capacity_purchase.potion_capacity)
         
-        if capacity_purchase.ml_capacity > 0:
-            connection.execute(sqlalchemy.text(
-                "INSERT INTO ledgers (inventory_type, change, total) VALUES ('ml_capacity', :change, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'ml_capacity'), 10000) + :change)"
-                ), {"change": 10000 * capacity_purchase.ml_capacity})
+    if capacity_purchase.ml_capacity > 0:
+        update_ml_cap(10000 * capacity_purchase.ml_capacity)
     
     update_gold(-total_cost)
     print(f"DELIVER CAPACITY PLAN CALLED. Order ID: {order_id}, Capacities Delivered: {capacity_purchase}")
