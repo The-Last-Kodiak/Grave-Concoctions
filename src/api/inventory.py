@@ -14,7 +14,7 @@ router = APIRouter(
 
 def update_gold(change):
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
+        connection.execute(sqlalchemy.text(f"""
             INSERT INTO ledgers (inventory_type, change, total) VALUES ('gold', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'gold'), 0) + {change});
             UPDATE gl_inv SET gold = (SELECT SUM(change) FROM ledgers WHERE inventory_type = 'gold');"""))
 
@@ -24,7 +24,7 @@ def get_current_gold():
 
 def update_potion_inventory(sku, change):
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
+        connection.execute(sqlalchemy.text(f"""
             INSERT INTO ledgers (inventory_type, change, total) VALUES ('{sku}', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = '{sku}'), 0) + {change});
             UPDATE potions SET stocked = (SELECT SUM(change) FROM ledgers WHERE inventory_type = '{sku}') WHERE sku = '{sku}';"""))
 
@@ -35,7 +35,7 @@ def get_current_potion_inventory(sku):
 def update_ml(type, change):
     with db.engine.begin() as connection:
         ml_column = f"num_{type.lower()}_ml"
-        connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
+        connection.execute(sqlalchemy.text(f"""
             INSERT INTO ledgers (inventory_type, change, total) VALUES ('{type}_ml', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = '{type}_ml'), 0) + {change});
             UPDATE gl_inv SET {ml_column} = (SELECT SUM(change) FROM ledgers WHERE inventory_type = '{type}_ml');"""))
 
@@ -45,13 +45,13 @@ def get_current_ml(type):
 
 def update_potion_cap(change):
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
+        connection.execute(sqlalchemy.text(f"""
             INSERT INTO ledgers (inventory_type, change, total) VALUES ('potion_capacity', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'potion_capacity'), 0) + {change});
             UPDATE gl_inv SET pot_cap = (SELECT SUM(change) FROM ledgers WHERE inventory_type = 'potion_capacity');"""))
 
 def update_ml_cap(change):
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"""LOCK TABLE ledgers IN EXCLUSIVE MODE;
+        connection.execute(sqlalchemy.text(f"""
             INSERT INTO ledgers (inventory_type, change, total) VALUES ('ml_capacity', {change}, COALESCE((SELECT SUM(change) FROM ledgers WHERE inventory_type = 'ml_capacity'), 0) + {change});
             UPDATE gl_inv SET ml_cap = (SELECT SUM(change) FROM ledgers WHERE inventory_type = 'ml_capacity');"""))
 
