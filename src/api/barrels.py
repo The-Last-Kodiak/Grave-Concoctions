@@ -91,29 +91,29 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     potion_order = best_potion_order
     print(f"Color Order: {potion_order}")
     
-    for barrel in wholesale_catalog:
-        if tuple(barrel.potion_type) == (0, 0, 0, 1):
-            dark_barrels.append(barrel)
-    if dark_barrels:
-        dark_barrels.sort(key=lambda x: x.ml_per_barrel) 
-        total_dark_ml = dark_ml
-        for barrel in dark_barrels:
-            if barrel.price <= gold and total_dark_ml < half_average_ml:
-                barrels_to_buy = min(1, barrel.quantity)
-                total_cost = barrels_to_buy * barrel.price
-                if total_cost <= gold and barrel.ml_per_barrel <= ml_cap and barrels_to_buy == 1:
-                    ml_cap -= barrel.ml_per_barrel
-                    gold -= total_cost
-                    total_price += total_cost
-                    total_dark_ml += barrel.ml_per_barrel
-                    purchase_plan.append({"sku": barrel.sku, "quantity": barrels_to_buy}) 
-                    barrel.quantity -= barrels_to_buy
-                    for b in wholesale_catalog:
-                        if b.sku == barrel.sku:
-                            b.quantity -= barrels_to_buy
-                            break
-    else:
-        purchase_plan = []
+    # for barrel in wholesale_catalog:
+    #     if tuple(barrel.potion_type) == (0, 0, 0, 1):
+    #         dark_barrels.append(barrel)
+    # if dark_barrels:
+    #     dark_barrels.sort(key=lambda x: x.ml_per_barrel) 
+    #     total_dark_ml = dark_ml
+    #     for barrel in dark_barrels:
+    #         if barrel.price <= gold and total_dark_ml < half_average_ml:
+    #             barrels_to_buy = min(1, barrel.quantity)
+    #             total_cost = barrels_to_buy * barrel.price
+    #             if total_cost <= gold and barrel.ml_per_barrel <= ml_cap and barrels_to_buy == 1:
+    #                 ml_cap -= barrel.ml_per_barrel
+    #                 gold -= total_cost
+    #                 total_price += total_cost
+    #                 total_dark_ml += barrel.ml_per_barrel
+    #                 purchase_plan.append({"sku": barrel.sku, "quantity": barrels_to_buy}) 
+    #                 barrel.quantity -= barrels_to_buy
+    #                 for b in wholesale_catalog:
+    #                     if b.sku == barrel.sku:
+    #                         b.quantity -= barrels_to_buy
+    #                         break
+    # else:
+    #     purchase_plan = []
 
     spending_limit = min(gold, daily_spending) if gold > daily_spending else gold
     large_barrels, medium_barrels, small_barrels, mini_barrels = [], [], [], []
@@ -204,12 +204,25 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         return purchase_list, total_spent, ml_bought
 
 
-    # if spending_limit >= 4250:
-    #     barrel_categories = [large_barrels]
-    # elif spending_limit >= 1600:
-    #     barrel_categories = [large_barrels, medium_barrels]
-    # else:
-    barrel_categories = [large_barrels, medium_barrels, small_barrels]
+    if spending_limit >= 4250:
+        if len(large_barrels) < 4:
+            large_barrels.extend(medium_barrels)
+        if len(medium_barrels) < 3:
+            large_barrels.extend(small_barrels)
+        if len(small_barrels) < 3:
+            large_barrels.extend(mini_barrels)
+        barrel_categories = [large_barrels]
+    elif spending_limit >= 1600:
+        if len(medium_barrels) < 3:
+            medium_barrels.extend(small_barrels)
+        if len(small_barrels) < 3:
+            medium_barrels.extend(mini_barrels)
+        barrel_categories = [large_barrels, medium_barrels]
+    else:
+        if len(small_barrels) < 3:
+            small_barrels.extend(mini_barrels)
+        barrel_categories = [large_barrels, medium_barrels, small_barrels]
+
     for barrels in barrel_categories:
         category_purchase, category_spent, ml_taken = process_barrels(barrels, spending_limit, ml_cap)
         ml_cap -= ml_taken
