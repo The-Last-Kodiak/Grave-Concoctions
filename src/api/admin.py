@@ -19,12 +19,14 @@ def reset():
     """
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text("""
-            TRUNCATE TABLE ledgers;
+            TRUNCATE TABLE potion_ledgers;
+            TRUNCATE TABLE ml_ledgers;
+            TRUNCATE TABLE gold_ledgers;
             UPDATE gl_inv SET gold = 100, num_green_ml = 0, num_red_ml = 0, num_blue_ml = 0, num_dark_ml = 0, pot_cap = 50, ml_cap = 10000, p_space_b4buy = 13, ml_space_b4buy = 2000;
             UPDATE potions SET stocked = 0;
-            INSERT INTO ledgers (inventory_type, change, total) VALUES ('gold', 100, 100);
-            INSERT INTO ledgers (inventory_type, change, total) VALUES ('potion_capacity', 50, 50);
-            INSERT INTO ledgers (inventory_type, change, total) VALUES ('ml_capacity', 10000, 10000);"""))
+            INSERT INTO gold_ledgers (inventory_type, change, total) VALUES ('gold', 100, 100);
+            INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('potion_capacity', 50, 50);
+            INSERT INTO ml_ledgers (inventory_type, change, total) VALUES ('ml_capacity', 10000, 10000);"""))
     print("Successfully Reset Store")
     return "Successfully Reset Inventory"
 
