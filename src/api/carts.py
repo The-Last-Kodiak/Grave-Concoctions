@@ -215,13 +215,17 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
         qry = "SELECT SUM(turba_price), SUM(in_cart) FROM zuto_carts WHERE cart_id = :cart_id"
         total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry), {"cart_id": cart_id}).fetchone()        
         if total_gold_paid is None:
-            return {"error": "Cart not found or empty"}, 404        
+            return {"error": "Cart not found or empty"}, 404
         qry_potions = "SELECT sku, in_cart FROM zuto_carts WHERE cart_id = :cart_id"
         potion_items = connection.execute(sqlalchemy.text(qry_potions), {"cart_id": cart_id}).fetchall()
         for item in potion_items:
             item_sku, item_quantity = item
-            update_potion_inventory(item_sku, -item_quantity)    
-        update_gold(total_gold_paid)
-        gold = get_current_gold()
+            connection.execute(sqlalchemy.text(f"""
+            INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('{item_sku}', {-item_quantity}, COALESCE((SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}'), 0) + {-item_quantity});
+            UPDATE potions SET stocked = (SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}') WHERE sku = '{item_sku}';"""))
+        connection.execute(sqlalchemy.text(f"""
+            INSERT INTO gold_ledgers (inventory_type, change, total) VALUES ('gold', {total_gold_paid}, COALESCE((SELECT SUM(change) FROM gold_ledgers WHERE inventory_type = 'gold'), 0) + {total_gold_paid});
+            UPDATE gl_inv SET gold = (SELECT SUM(change) FROM gold_ledgers WHERE inventory_type = 'gold');"""))
+        gold = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(change), 0) FROM gold_ledgers WHERE inventory_type = 'gold';")).scalar()
         print(f"USER: {cart_id}, NPC Paid: {total_gold_paid}, New Gold: {gold}")
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
