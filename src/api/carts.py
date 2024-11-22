@@ -216,14 +216,12 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
         total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry), {"cart_id": cart_id}).fetchone()        
         if total_gold_paid is None:
             return {"error": "Cart not found or empty"}, 404        
-        update_gold(total_gold_paid)
-        gold = get_current_gold()
-        print(f"USER: {cart_id}, NPC Paid: {total_gold_paid}, New Gold: {gold}")
-        
         qry_potions = "SELECT sku, in_cart FROM zuto_carts WHERE cart_id = :cart_id"
         potion_items = connection.execute(sqlalchemy.text(qry_potions), {"cart_id": cart_id}).fetchall()
-        
         for item in potion_items:
             item_sku, item_quantity = item
             update_potion_inventory(item_sku, -item_quantity)    
+        update_gold(total_gold_paid)
+        gold = get_current_gold()
+        print(f"USER: {cart_id}, NPC Paid: {total_gold_paid}, New Gold: {gold}")
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
