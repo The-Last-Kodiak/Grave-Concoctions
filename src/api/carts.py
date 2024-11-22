@@ -193,7 +193,7 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
                 connection.execute(sqlalchemy.text("""INSERT INTO class_gems (class) VALUES (:class_text)ON CONFLICT (class) DO NOTHING"""), {"class_text": class_text})               
                 potion_column = item_sku.split('_')[0].upper()
                 connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = COALESCE("{potion_column}", 0) + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})                
-                update_potion_inventory(item_sku, -cart_item.quantity)
+                #update_potion_inventory(item_sku, -cart_item.quantity)
                 print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
                 return {"success": True}
             else:
@@ -210,14 +210,20 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
     """Processes the checkout for a specific cart."""
     cart_id = cart_id.strip('"')  # Remove any extra quotes
     print(f"This customer has cart id: {cart_id}")
-    print(f"NPC Payment String: {cart_checkout.payment}")
+    print(f"NPC Payment String: {cart_checkout.payment}")   
     with db.engine.begin() as connection:
         qry = "SELECT SUM(turba_price), SUM(in_cart) FROM zuto_carts WHERE cart_id = :cart_id"
-        total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry), {"cart_id": cart_id}).fetchone()
+        total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry), {"cart_id": cart_id}).fetchone()        
         if total_gold_paid is None:
-            return {"error": "Cart not found or empty"}, 404
+            return {"error": "Cart not found or empty"}, 404        
         update_gold(total_gold_paid)
         gold = get_current_gold()
-        print(f"USER: {cart_id}  New Gold: {gold}")
-        print(f"NPC Paid: {total_gold_paid}, New Gold: {gold}")
+        print(f"USER: {cart_id}, NPC Paid: {total_gold_paid}, New Gold: {gold}")
+        
+        qry_potions = "SELECT sku, in_cart FROM zuto_carts WHERE cart_id = :cart_id"
+        potion_items = connection.execute(sqlalchemy.text(qry_potions), {"cart_id": cart_id}).fetchall()
+        
+        for item in potion_items:
+            item_sku, item_quantity = item
+            update_potion_inventory(item_sku, -item_quantity)    
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
