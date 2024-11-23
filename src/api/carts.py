@@ -164,9 +164,8 @@ def create_cart(new_cart: Customer):
         if not class_row:
             connection.execute(sqlalchemy.text("INSERT INTO class_buy_days (class) VALUES (:class)"), {"class": character_class})
         connection.execute(sqlalchemy.text(f'UPDATE class_buy_days SET "{day_column}" = COALESCE("{day_column}", 0) + 1 WHERE class = :class'), {"class": character_class})
-    print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}")
-    print(f"Inserted values: cart_id={cart_id}, customer_name={new_cart.customer_name}, class={new_cart.character_class}, level={new_cart.level}, day={day}")
-    return {"cart_id": cart_id}
+        print(f"CREATED A CART FOR CUSTOMER WITH ID: {cart_id}, Inserted values: cart_id={cart_id}, customer_name={new_cart.customer_name}, class={new_cart.character_class}, level={new_cart.level}, day={day}")
+        return {"cart_id": cart_id}
 
 
 
