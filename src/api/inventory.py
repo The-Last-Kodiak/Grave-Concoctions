@@ -61,30 +61,39 @@ def update_ml_cap(change):
 def get_inventory():
     """Get the full inventory of all kinds of items."""
     with db.engine.begin() as connection:
-        query_1 = """
-        SELECT 'GREEN_ml' AS inventory_type, COALESCE(SUM(change), 0) AS total FROM ml_ledgers WHERE inventory_type = 'GREEN_ml'
-        UNION ALL
-        SELECT 'RED_ml' AS inventory_type, COALESCE(SUM(change), 0) AS total FROM ml_ledgers WHERE inventory_type = 'RED_ml'
-        UNION ALL
-        SELECT 'BLUE_ml' AS inventory_type, COALESCE(SUM(change), 0) AS total FROM ml_ledgers WHERE inventory_type = 'BLUE_ml'
-        UNION ALL
-        SELECT 'DARK_ml' AS inventory_type, COALESCE(SUM(change), 0) AS total FROM ml_ledgers WHERE inventory_type = 'DARK_ml'
-        UNION ALL
-        SELECT 'gold' AS inventory_type, COALESCE(SUM(change), 0) AS total FROM gold_ledgers WHERE inventory_type = 'gold';
+        query_ml = """
+        SELECT inventory_type, COALESCE(SUM(change), 0) AS total FROM ml_ledgers
+        WHERE inventory_type IN ('GREEN_ml', 'RED_ml', 'BLUE_ml', 'DARK_ml')
+        GROUP BY inventory_type;
         """
-        results_1 = connection.execute(sqlalchemy.text(query_1)).fetchall()
-        green_ml = next((item.total for item in results_1 if item.inventory_type == 'GREEN_ml'), 0)
-        red_ml = next((item.total for item in results_1 if item.inventory_type == 'RED_ml'), 0)
-        blue_ml = next((item.total for item in results_1 if item.inventory_type == 'BLUE_ml'), 0)
-        dark_ml = next((item.total for item in results_1 if item.inventory_type == 'DARK_ml'), 0)
-        gold = next((item.total for item in results_1 if item.inventory_type == 'gold'), 0)
-        potions = connection.execute(sqlalchemy.text("SELECT sku, price FROM potions")).fetchall()
-        potion_inventory = {potion.sku: get_current_potion_inventory(potion.sku) or 0 for potion in potions}
-        total_potions = sum(potion_inventory.values())
-        total_ml = green_ml + red_ml + blue_ml + dark_ml
-
-        print(f"CALLED GET INVENTORY. Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}, Dark ML: {dark_ml}, Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
-        return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold}
+        ml_results = connection.execute(sqlalchemy.text(query_ml)).fetchall()
+        query_gold = """
+        SELECT COALESCE(SUM(change), 0) AS total FROM gold_ledgers WHERE inventory_type = 'gold';
+        """
+        gold = connection.execute(sqlalchemy.text(query_gold)).scalar() or 0
+        query_potions = """
+        SELECT 
+            p.sku, 
+            COALESCE(SUM(pl.change), 0) AS current_inventory
+        FROM 
+            potions p
+        LEFT JOIN 
+            potion_ledgers pl ON p.sku = pl.inventory_type
+        WHERE 
+            p.stocked > 0
+        GROUP BY 
+            p.sku;
+        """
+        potions = connection.execute(sqlalchemy.text(query_potions)).fetchall()
+    green_ml = next((item.total for item in ml_results if item.inventory_type == 'GREEN_ml'), 0)
+    red_ml = next((item.total for item in ml_results if item.inventory_type == 'RED_ml'), 0)
+    blue_ml = next((item.total for item in ml_results if item.inventory_type == 'BLUE_ml'), 0)
+    dark_ml = next((item.total for item in ml_results if item.inventory_type == 'DARK_ml'), 0)
+    potion_inventory = {potion.sku: potion.current_inventory for potion in potions}
+    total_potions = sum(potion_inventory.values())
+    total_ml = green_ml + red_ml + blue_ml + dark_ml
+    print(f"CALLED GET INVENTORY. Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}, Dark ML: {dark_ml}, Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
+    return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold}
 
 
 # Gets called once a day
