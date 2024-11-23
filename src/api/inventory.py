@@ -79,13 +79,12 @@ def get_inventory():
         dark_ml = next((item.total for item in results_1 if item.inventory_type == 'DARK_ml'), 0)
         gold = next((item.total for item in results_1 if item.inventory_type == 'gold'), 0)
         potions = connection.execute(sqlalchemy.text("SELECT sku, price FROM potions")).fetchall()
-    potion_inventory = {potion.sku: get_current_potion_inventory(potion.sku) or 0 for potion in potions}
-    total_potions = sum(potion_inventory.values())
-    total_ml = green_ml + red_ml + blue_ml + dark_ml
+        potion_inventory = {potion.sku: get_current_potion_inventory(potion.sku) or 0 for potion in potions}
+        total_potions = sum(potion_inventory.values())
+        total_ml = green_ml + red_ml + blue_ml + dark_ml
 
-    print(f"CALLED GET INVENTORY. Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}, Dark ML: {dark_ml}")
-    print(f"Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
-    return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold}
+        print(f"CALLED GET INVENTORY. Green ML: {green_ml}, Red ML: {red_ml}, Blue ML: {blue_ml}, Dark ML: {dark_ml}, Number of Potions: {total_potions}, ML in Barrels: {total_ml}, Gold: {gold}")
+        return {"number_of_potions": total_potions, "ml_in_barrels": total_ml, "gold": gold}
 
 
 # Gets called once a day
