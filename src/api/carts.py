@@ -192,9 +192,9 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
                 #connection.execute(sqlalchemy.text("""INSERT INTO class_gems (class) VALUES (:class_text)ON CONFLICT (class) DO NOTHING"""), {"class_text": class_text})
                 potion_column = item_sku.split('_')[0].upper()
                 connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = COALESCE("{potion_column}", 0) + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})
-                connection.execute(sqlalchemy.text(f"""
-                INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('{item_sku}', {-cart_item.quantity}, COALESCE((SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}'), 0) + {-cart_item.quantity});
-                UPDATE potions SET stocked = (SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}') WHERE sku = '{item_sku}';"""))
+                # connection.execute(sqlalchemy.text(f"""
+                # INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('{item_sku}', {-cart_item.quantity}, COALESCE((SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}'), 0) + {-cart_item.quantity});
+                # UPDATE potions SET stocked = (SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}') WHERE sku = '{item_sku}';"""))
                 #update_potion_inventory(item_sku, -cart_item.quantity)
                 print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
                 return {"success": True}
@@ -216,13 +216,13 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
         total_gold_paid, total_potions_bought = connection.execute(sqlalchemy.text(qry), {"cart_id": cart_id}).fetchone()        
         if total_gold_paid is None:
             return {"error": "Cart not found or empty"}, 404
-        # qry_potions = "SELECT sku, in_cart FROM zuto_carts WHERE cart_id = :cart_id"
-        # potion_items = connection.execute(sqlalchemy.text(qry_potions), {"cart_id": cart_id}).fetchall()
-        # for item in potion_items:
-        #     item_sku, item_quantity = item
-        #     connection.execute(sqlalchemy.text(f"""
-        #     INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('{item_sku}', {-item_quantity}, COALESCE((SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}'), 0) + {-item_quantity});
-        #     UPDATE potions SET stocked = (SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}') WHERE sku = '{item_sku}';"""))
+        qry_potions = "SELECT sku, in_cart FROM zuto_carts WHERE cart_id = :cart_id"
+        potion_items = connection.execute(sqlalchemy.text(qry_potions), {"cart_id": cart_id}).fetchall()
+        for item in potion_items:
+            item_sku, item_quantity = item
+            connection.execute(sqlalchemy.text(f"""
+            INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('{item_sku}', {-item_quantity}, COALESCE((SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}'), 0) + {-item_quantity});
+            UPDATE potions SET stocked = (SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}') WHERE sku = '{item_sku}';"""))
         connection.execute(sqlalchemy.text(f"""
             INSERT INTO gold_ledgers (inventory_type, change, total) VALUES ('gold', {total_gold_paid}, COALESCE((SELECT SUM(change) FROM gold_ledgers WHERE inventory_type = 'gold'), 0) + {total_gold_paid});
             UPDATE gl_inv SET gold = (SELECT SUM(change) FROM gold_ledgers WHERE inventory_type = 'gold');"""))
