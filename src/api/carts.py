@@ -229,4 +229,4 @@ def checkout(cart_id: str, cart_checkout: CartCheckout):
             UPDATE gl_inv SET gold = (SELECT SUM(change) FROM gold_ledgers WHERE inventory_type = 'gold');"""))
         gold = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(change), 0) FROM gold_ledgers WHERE inventory_type = 'gold';")).scalar()
         print(f"USER: {cart_id}, NPC Paid: {total_gold_paid}, New Gold: {gold}")
-    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
+        return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
