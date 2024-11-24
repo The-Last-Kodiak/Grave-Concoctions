@@ -181,23 +181,26 @@ def set_item_quantity(cart_id: str, item_sku: str, cart_item: CartItem):
             price, stocked = potion
             if stocked >= cart_item.quantity:
                 turba_price = cart_item.quantity * price
-                connection.execute(sqlalchemy.text("""
-                    INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
-                    VALUES (:cart_id, :item_sku, :quantity, :turba_price)
-                """), {"cart_id": cart_id, "item_sku": item_sku, "quantity": cart_item.quantity, "turba_price": turba_price})
-                class_text = connection.execute(sqlalchemy.text("SELECT class FROM cart_owners WHERE cart_id = :cart_id"), {"cart_id": cart_id}).scalar()
-                if class_text is None:
-                    return {"error": "Class not found for the given cart_id"}, 400
-                class_text = class_text.strip('"')
-                #connection.execute(sqlalchemy.text("""INSERT INTO class_gems (class) VALUES (:class_text)ON CONFLICT (class) DO NOTHING"""), {"class_text": class_text})
-                potion_column = item_sku.split('_')[0].upper()
-                connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = COALESCE("{potion_column}", 0) + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})
-                # connection.execute(sqlalchemy.text(f"""
-                # INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('{item_sku}', {-cart_item.quantity}, COALESCE((SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}'), 0) + {-cart_item.quantity});
-                # UPDATE potions SET stocked = (SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}') WHERE sku = '{item_sku}';"""))
-                #update_potion_inventory(item_sku, -cart_item.quantity)
-                print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
-                return {"success": True}
+                existing_cart_item = connection.execute(sqlalchemy.text(""" SELECT in_cart FROM zuto_carts WHERE cart_id = :cart_id AND sku = :item_sku """), {"cart_id": cart_id, "item_sku": item_sku}).fetchone()
+                if not existing_cart_item:
+                    connection.execute(sqlalchemy.text("""
+                        INSERT INTO zuto_carts (cart_id, sku, in_cart, turba_price)
+                        VALUES (:cart_id, :item_sku, :quantity, :turba_price)
+                    """), {"cart_id": cart_id, "item_sku": item_sku, "quantity": cart_item.quantity, "turba_price": turba_price})
+                    class_text = connection.execute(sqlalchemy.text("SELECT class FROM cart_owners WHERE cart_id = :cart_id"), {"cart_id": cart_id}).scalar()
+                    if class_text is None:
+                        return {"error": "Class not found for the given cart_id"}, 400
+                    class_text = class_text.strip('"')
+                    #connection.execute(sqlalchemy.text("""INSERT INTO class_gems (class) VALUES (:class_text)ON CONFLICT (class) DO NOTHING"""), {"class_text": class_text})
+                    potion_column = item_sku.split('_')[0].upper()
+                    connection.execute(sqlalchemy.text(f'UPDATE class_gems SET "{potion_column}" = COALESCE("{potion_column}", 0) + :quantity WHERE class = :class_text'), {"quantity": cart_item.quantity, "class_text": class_text})
+                    # connection.execute(sqlalchemy.text(f"""
+                    # INSERT INTO potion_ledgers (inventory_type, change, total) VALUES ('{item_sku}', {-cart_item.quantity}, COALESCE((SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}'), 0) + {-cart_item.quantity});
+                    # UPDATE potions SET stocked = (SELECT SUM(change) FROM potion_ledgers WHERE inventory_type = '{item_sku}') WHERE sku = '{item_sku}';"""))
+                    #update_potion_inventory(item_sku, -cart_item.quantity)
+                    print(f"USER: {cart_id} added {item_sku} to cart this many times: {cart_item.quantity}")
+                    return {"success": True}
+                else: return {"error": "Item already exists in the cart"}, 400
             else:
                 return {"error": "Not enough stock available"}, 400
         else:
